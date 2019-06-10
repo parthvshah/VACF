@@ -8,7 +8,7 @@ Command line arguments:
     -a PARTICLES
     -i ITERATIONS
 
-Date: 6-6-2019
+Date: 10-6-2019
  */
 
 #include <stdio.h>
