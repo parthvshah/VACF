@@ -78,9 +78,18 @@ int main(int argc, char **argv)
     int rank, wSize, lStart, lEnd, sendStart, sendEnd, lNStart, lNEnd, chunk, remainder, t, dt;
     MPI_Status status;
 
+    MPI_Group orig_group, new_group;
+    MPI_Comm MPI_SLAVES;
+
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
+
+    int slaveRanks[8] = {1,2,4,5,7,8,10,11};
+
+    MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
+    MPI_Group_incl(orig_group, (wSize - (wSize / 3)), slaveRanks, &new_group);
+    MPI_Comm_create(MPI_COMM_WORLD, new_group, &MPI_SLAVES);
 
     int start;
     int stop;
@@ -169,7 +178,7 @@ int main(int argc, char **argv)
                     MPI_Send(&dt, 1, MPI_INT, sendIndex, 203, MPI_COMM_WORLD);
                     lNStart = ((sendIndex % 3) - 1) * (N / 2) + 1;
                     lNEnd = lNStart + (N / 2) - 1;
-                    // printf("%d) %d gets %d and %d.\n", rank, sendIndex, lNStart, lNEnd);
+
                     MPI_Send(&lNStart, 1, MPI_INT, sendIndex, 204, MPI_COMM_WORLD);
                     MPI_Send(&lNEnd, 1, MPI_INT, sendIndex, 205, MPI_COMM_WORLD);
                 }
@@ -198,20 +207,28 @@ int main(int argc, char **argv)
 
     if (rank % 3 != 0)
     {
-        MPI_Recv(&t, 1, MPI_INT, rank - (rank % 3), 202, MPI_COMM_WORLD, &status);
-        MPI_Recv(&dt, 1, MPI_INT, rank - (rank % 3), 203, MPI_COMM_WORLD, &status);
-        MPI_Recv(&lNStart, 1, MPI_INT, rank - (rank % 3), 204, MPI_COMM_WORLD, &status);
-        MPI_Recv(&lEnd, 1, MPI_INT, rank - (rank % 3), 205, MPI_COMM_WORLD, &status);
-
-        particle = 0.0;
-        for (int i = 1; i < N; i++)
+        while(1)
         {
-            particle += xData[i][t] * xData[i][t + dt] +
-                        yData[i][t] * yData[i][t + dt] +
-                        zData[i][t] * zData[i][t + dt];
+            MPI_Recv(&t, 1, MPI_INT, rank - (rank % 3), 202, MPI_COMM_WORLD, &status);
+            MPI_Recv(&dt, 1, MPI_INT, rank - (rank % 3), 203, MPI_COMM_WORLD, &status);
+            MPI_Recv(&lNStart, 1, MPI_INT, rank - (rank % 3), 204, MPI_COMM_WORLD, &status);
+            MPI_Recv(&lNEnd, 1, MPI_INT, rank - (rank % 3), 205, MPI_COMM_WORLD, &status);
+
+            particle = 0.0;
+            for (int i = lNStart; i < lNEnd; i++)
+            {
+                particle += xData[i][t] * xData[i][t + dt] +
+                            yData[i][t] * yData[i][t + dt] +
+                            zData[i][t] * zData[i][t + dt];
+            }
+
+            MPI_Send(&particle, 1, MPI_DOUBLE, rank - (rank % 3), 201, MPI_COMM_WORLD);
+
+            MPI_Barrier(MPI_SLAVES);
+
         }
 
-        MPI_Send(&particle, 1, MPI_DOUBLE, rank - (rank % 3), 201, MPI_COMM_WORLD);
+            
     }
 
     MPI_Finalize();
