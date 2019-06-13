@@ -6,6 +6,7 @@
 
 TIMEFORMAT=%R
 HISTORY_CLEAN_FILENAME="HISTORY_CLEAN"
+HOSTFILE_FILENAME="host_file"
 OUT_FILENAME="OUT"
 
 echo "VACF AND COEFFICIENT OF DISSFUSION"
@@ -19,7 +20,7 @@ START=50000
 STOP=86650
 STEP=10
 PARTICLES=864
-ITERATIONS=40
+ITERATIONS=1666
 
 CLEAN=false
 PLOT=false
@@ -41,8 +42,8 @@ fi
 
 if [ "$PARALLEL" = true ]; then
     echo "[INFO] Generating VACF plot (parallel) for $ITERATIONS iterations."
-    mpicc -o vacf par1.3.c -std=c99
-    time mpirun -n $THREADS ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+    mpicc -o vacf par.c -std=c99
+    time mpirun -hostfile $HOSTFILE_FILENAME ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
 else
     echo "[INFO] Generating VACF plot (series) for $ITERATIONS iterations."
     gcc -o vacf seq.c -g -O3 -std=c99
