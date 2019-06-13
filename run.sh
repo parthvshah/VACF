@@ -16,16 +16,16 @@ echo "VACF AND COEFFICIENT OF DISSFUSION"
 
 FILE="HISTORY"
 START=50000
-STOP=100000
+STOP=86650
 STEP=10
 PARTICLES=864
 ITERATIONS=40
 
 CLEAN=false
-PLOT=true
+PLOT=false
 PARALLEL=true
 
-THREADS=12
+THREADS=4
 
 GRAPH_LOWER=0
 GRAPH_UPPER=166
@@ -41,7 +41,7 @@ fi
 
 if [ "$PARALLEL" = true ]; then
     echo "[INFO] Generating VACF plot (parallel) for $ITERATIONS iterations."
-    mpicc -o vacf par2.c -std=c99
+    mpicc -o vacf par1.3.c -std=c99
     time mpirun -n $THREADS ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
 else
     echo "[INFO] Generating VACF plot (series) for $ITERATIONS iterations."

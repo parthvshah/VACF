@@ -27,7 +27,7 @@ Algorithm:
             accumalate += particle
         print(dt, accumalate/((N-1)*count)
 
-Date: 10-6-2019
+Date: 13-6-2019
  */
 
 #include <stdio.h>
@@ -75,7 +75,7 @@ void readData(int start, int step)
 
 int main(int argc, char **argv)
 {
-    int rank, wSize, lStart, lEnd, sendStart, sendEnd, lNStart, lNEnd, chunk, remainder, t, dt;
+    int rank, wSize, lStart, lEnd, chunk, remainder;
     MPI_Status status;
 
     MPI_Group orig_group, new_group;
@@ -85,16 +85,23 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
 
-    int slaveRanks[8] = {1,2,4,5,7,8,10,11};
+    // int slaveRanks[3] = {1, 2, 3};
+
+    int *slaveRanks = (int *)malloc(sizeof(int) * (wSize - 1));
+    for (int iS = 0; iS < (wSize - 1); iS++)
+    {
+        slaveRanks[iS] = iS + 1;
+    }
 
     MPI_Comm_group(MPI_COMM_WORLD, &orig_group);
-    MPI_Group_incl(orig_group, (wSize - (wSize / 3)), slaveRanks, &new_group);
+    MPI_Group_incl(orig_group, (wSize - 1), slaveRanks, &new_group);
     MPI_Comm_create(MPI_COMM_WORLD, new_group, &MPI_COMM_SLAVES);
 
     int start;
     int stop;
     int step;
     int N, M;
+    int t, dt;
     int tmax = 0;
 
     double accumalate, particle;
@@ -127,77 +134,66 @@ int main(int argc, char **argv)
 
         fprintf(stdout, "timestep, vacf\n");
 
-        chunk = tmax / (wSize / 3);
-        remainder = tmax - ((wSize / 3) * chunk);
+        chunk = (N - 1) / wSize;
+        remainder = (N - 1) - (wSize * chunk);
+
+        int sendStart, sendEnd;
 
         lStart = 1;
         lEnd = lStart - 1 + chunk;
 
-        int mainIndex = 1;
-        for (int process = 3; process < wSize; process = process + 3)
+        for (int process = 1; process < wSize - 1; process++)
         {
-            sendStart = (mainIndex * chunk) + 1;
+            sendStart = (process * chunk) + 1;
             sendEnd = sendStart - 1 + chunk;
             MPI_Send(&sendStart, 1, MPI_INT, process, 101, MPI_COMM_WORLD);
             MPI_Send(&sendEnd, 1, MPI_INT, process, 102, MPI_COMM_WORLD);
-
-            mainIndex++;
         }
-        sendEnd += remainder;
-        MPI_Send(&sendEnd, 1, MPI_INT, (wSize - 3), 103, MPI_COMM_WORLD);
+        sendStart = ((wSize - 1) * chunk) + 1;
+        sendEnd = sendStart - 1 + chunk + remainder;
+        MPI_Send(&sendStart, 1, MPI_INT, wSize - 1, 101, MPI_COMM_WORLD);
+        MPI_Send(&sendEnd, 1, MPI_INT, wSize - 1, 102, MPI_COMM_WORLD);
     }
 
-    if ((rank != 0) && (rank % 3 == 0))
+    if (rank != 0)
     {
         MPI_Recv(&lStart, 1, MPI_INT, 0, 101, MPI_COMM_WORLD, &status);
         MPI_Recv(&lEnd, 1, MPI_INT, 0, 102, MPI_COMM_WORLD, &status);
     }
 
-    if (rank == (wSize - 3))
-    {
-        MPI_Recv(&lEnd, 1, MPI_INT, 0, 103, MPI_COMM_WORLD, &status);
-    }
-
-    MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    if (rank % 3 == 0)
+    if (rank == 0)
     {
-        for (dt = lStart; dt <= lEnd; dt++)
+        for (int dt = 1; dt <= tmax; dt++)
         {
             count = 0;
             accumalate = 0.0;
-            for (t = 0; t < (M - dt); t++)
+            for (int t = 0; t < (M - dt); t++)
             {
-                for (int sendIndex = rank + 1; sendIndex < (rank + 3); sendIndex++)
+                particle = 0.0;
+                for (int sendIndex = 1; sendIndex < wSize; sendIndex++)
                 {
-                    MPI_Send(&t, 1, MPI_INT, sendIndex, 202, MPI_COMM_WORLD);
-                    MPI_Send(&dt, 1, MPI_INT, sendIndex, 203, MPI_COMM_WORLD);
-                    lNStart = ((sendIndex % 3) - 1) * (N / 2) + 1;
-                    lNEnd = lNStart + (N / 2) - 1;
-
-                    MPI_Send(&lNStart, 1, MPI_INT, sendIndex, 204, MPI_COMM_WORLD);
-                    MPI_Send(&lNEnd, 1, MPI_INT, sendIndex, 205, MPI_COMM_WORLD);
+                    MPI_Send(&t, 1, MPI_INT, sendIndex, 201, MPI_COMM_WORLD);
+                    MPI_Send(&dt, 1, MPI_INT, sendIndex, 202, MPI_COMM_WORLD);
                 }
 
-                particle = 0.0;
-                // for (int i = 1; i < N; i++)
-                // {
-                //     particle += xData[i][t] * xData[i][t + dt] +
-                //                 yData[i][t] * yData[i][t + dt] +
-                //                 zData[i][t] * zData[i][t + dt];
-                // }
-
-                count++;
-                for (int recIndex = rank + 1; recIndex < (rank + 3); recIndex++)
+                for (int i = lStart; i <= lEnd; i++)
                 {
-                    MPI_Recv(&particle, 1, MPI_DOUBLE, recIndex, 201, MPI_COMM_WORLD, &status);
+                    accumalate += xData[i][t] * xData[i][t + dt] +
+                                yData[i][t] * yData[i][t + dt] +
+                                zData[i][t] * zData[i][t + dt];
+                }
+
+                for (int recIndex = 1; recIndex < wSize; recIndex++)
+                {
+                    MPI_Recv(&particle, 1, MPI_DOUBLE, recIndex, 203, MPI_COMM_WORLD, &status);
                     accumalate += particle;
                 }
 
+                count++;
                 // accumalate += particle;
             }
             accumalate /= ((N - 1) * count);
@@ -205,34 +201,29 @@ int main(int argc, char **argv)
         }
     }
 
-    if (rank % 3 != 0)
+    if (rank != 0)
     {
-        while(1)
+        while (1)
         {
-            MPI_Recv(&t, 1, MPI_INT, rank - (rank % 3), 202, MPI_COMM_WORLD, &status);
-            MPI_Recv(&dt, 1, MPI_INT, rank - (rank % 3), 203, MPI_COMM_WORLD, &status);
-            MPI_Recv(&lNStart, 1, MPI_INT, rank - (rank % 3), 204, MPI_COMM_WORLD, &status);
-            MPI_Recv(&lNEnd, 1, MPI_INT, rank - (rank % 3), 205, MPI_COMM_WORLD, &status);
+            MPI_Recv(&t, 1, MPI_INT, 0, 201, MPI_COMM_WORLD, &status);
+            MPI_Recv(&dt, 1, MPI_INT, 0, 202, MPI_COMM_WORLD, &status);
 
             particle = 0.0;
-            for (int i = lNStart; i < lNEnd; i++)
+            for (int i = lStart; i <= lEnd; i++)
             {
                 particle += xData[i][t] * xData[i][t + dt] +
                             yData[i][t] * yData[i][t + dt] +
                             zData[i][t] * zData[i][t + dt];
             }
 
-            MPI_Send(&particle, 1, MPI_DOUBLE, rank - (rank % 3), 201, MPI_COMM_WORLD);
+            MPI_Send(&particle, 1, MPI_DOUBLE, 0, 203, MPI_COMM_WORLD);
 
             MPI_Barrier(MPI_COMM_SLAVES);
-
         }
-
-            
     }
 
     exit(1);
     MPI_Finalize();
-    
+
     return 0;
 }
