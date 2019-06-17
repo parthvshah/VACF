@@ -20,11 +20,12 @@ START=50000
 STOP=86650
 STEP=10
 PARTICLES=864
-ITERATIONS=1666
+ITERATIONS=84
 
 CLEAN=false
 PLOT=false
 PARALLEL=true
+LOCAL=false
 
 THREADS=4
 
@@ -41,9 +42,15 @@ if [ "$CLEAN" = true ] ; then
 fi
 
 if [ "$PARALLEL" = true ]; then
-    echo "[INFO] Generating VACF plot (parallel) for $ITERATIONS iterations."
-    mpicc -o vacf par.c -std=c99
-    time mpirun -hostfile $HOSTFILE_FILENAME ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+    if [ "$LOCAL" = true ]; then
+        echo "[INFO] Generating VACF plot (local, parallel) for $ITERATIONS iterations."
+        mpicc -o vacf par1.1.c -std=c99
+        time mpirun -n $THREADS ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+    else
+        echo "[INFO] Generating VACF plot (parallel) for $ITERATIONS iterations."
+        mpicc -o vacf par1.1.c -std=c99
+        time mpirun -hostfile $HOSTFILE_FILENAME ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+    fi
 else
     echo "[INFO] Generating VACF plot (series) for $ITERATIONS iterations."
     gcc -o vacf seq.c -g -O3 -std=c99
