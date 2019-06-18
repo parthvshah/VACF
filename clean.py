@@ -1,4 +1,4 @@
-f = open('HISTORY', 'r')
+f = open('HISTORY_500', 'r')
 lines = f.readlines()
 for x in range(len(lines)):
     if(lines[x][0]=='t'):

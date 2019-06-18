@@ -1,5 +1,8 @@
 .vscode
 
+/HISTORY_atoms
+/OUT_atoms
+
 HISTORY
 HISTORY_CLEAN
 OUT

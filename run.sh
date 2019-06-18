@@ -5,9 +5,9 @@
 # --------------------------------------------------------------------
 
 TIMEFORMAT=%R
-HISTORY_CLEAN_FILENAME="HISTORY_CLEAN"
+HISTORY_CLEAN_FILENAME="./HISTORY_atoms/HISTORY_CLEAN_108"
 HOSTFILE_FILENAME="host_file"
-OUT_FILENAME="OUT"
+OUT_FILENAME="OUT_108"
 
 echo "VACF AND COEFFICIENT OF DISSFUSION"
 
@@ -17,10 +17,11 @@ echo "VACF AND COEFFICIENT OF DISSFUSION"
 
 FILE="HISTORY"
 START=50000
-STOP=86650
+STOP=100000
+# STOP=86650
 STEP=10
-PARTICLES=864
-ITERATIONS=84
+PARTICLES=108
+ITERATIONS=1728
 
 CLEAN=false
 PLOT=false
@@ -45,16 +46,16 @@ if [ "$PARALLEL" = true ]; then
     if [ "$LOCAL" = true ]; then
         echo "[INFO] Generating VACF plot (local, parallel) for $ITERATIONS iterations."
         mpicc -o vacf par1.1.c -std=c99
-        time mpirun -n $THREADS ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+        time mpirun -n $THREADS ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS -f $HISTORY_CLEAN_FILENAME > $OUT_FILENAME
     else
         echo "[INFO] Generating VACF plot (parallel) for $ITERATIONS iterations."
         mpicc -o vacf par1.1.c -std=c99
-        time mpirun -hostfile $HOSTFILE_FILENAME ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+        time mpirun -hostfile $HOSTFILE_FILENAME ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS -f $HISTORY_CLEAN_FILENAME > $OUT_FILENAME
     fi
 else
     echo "[INFO] Generating VACF plot (series) for $ITERATIONS iterations."
     gcc -o vacf seq.c -g -O3 -std=c99
-    time ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS > $OUT_FILENAME
+    time ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS -f $HISTORY_CLEAN_FILENAME > $OUT_FILENAME
     
 fi
 
@@ -63,4 +64,4 @@ if [ "$PLOT" = true ] ; then
 fi
 
 echo "[INFO] Calculating coefficient of diffusion"
-time python3 diffusion.py
+time python3 diffusion.py $OUT_FILENAME

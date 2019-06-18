@@ -50,13 +50,13 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step)
+void readData(int start, int step, char *fileName)
 {
     int timestep, particle, index;
     double xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("HISTORY_CLEAN", "r");
+    fp = fopen(fileName, "r");
     if (fp == NULL)
         return;
 
@@ -109,6 +109,7 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
+        char fileName[256];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -117,6 +118,8 @@ int main(int argc, char **argv)
                 N = atoi(argv[++c]);
             else if (!strcmp(argv[c], "-i"))
                 tmax = atoi(argv[++c]);
+            else if (!strcmp(argv[c], "-f"))
+                sscanf(argv[++c], "%s", fileName);
             else
             {
                 fprintf(stderr, "[Error] Command-line argument not recognized.\n");
@@ -130,7 +133,7 @@ int main(int argc, char **argv)
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
         padding(M);
-        readData(start, step);
+        readData(start, step, fileName);
 
         fprintf(stdout, "timestep, vacf\n");
 

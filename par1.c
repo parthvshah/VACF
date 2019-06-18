@@ -56,13 +56,13 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step)
+void readData(int start, int step, char *fileName)
 {
     int timestep, particle, index;
     double xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("HISTORY_CLEAN", "r");
+    fp = fopen(fileName, "r");
     if (fp == NULL)
         return;
 
@@ -82,6 +82,7 @@ void readData(int start, int step)
 int main(int argc, char **argv)
 {
     int rank, wSize, lStart, lEnd, chunk, remainder;
+    double batchStart, batchEnd;
     MPI_Status status;
 
     MPI_Init(&argc, &argv);
@@ -99,6 +100,7 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
+        char fileName[256];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -107,6 +109,8 @@ int main(int argc, char **argv)
                 N = atoi(argv[++c]);
             else if (!strcmp(argv[c], "-i"))
                 tmax = atoi(argv[++c]);
+            else if (!strcmp(argv[c], "-f"))
+                sscanf(argv[++c], "%s", fileName);
             else
             {
                 fprintf(stderr, "[Error] Command-line argument not recognized.\n");
@@ -120,7 +124,7 @@ int main(int argc, char **argv)
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
         padding(M);
-        readData(start, step);
+        readData(start, step, fileName);
 
         fprintf(stdout, "timestep, vacf\n");
 
@@ -157,6 +161,7 @@ int main(int argc, char **argv)
     MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+    batchStart = MPI_Wtime();
     // for (int dt = 1; dt <= tmax; dt++)
     for (int dt = lStart; dt <= lEnd; dt++)
     {
@@ -175,8 +180,10 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
+        // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
+    batchEnd = MPI_Wtime();
+    printf("%d) Time for batch = %lf\n", rank, (batchEnd-batchStart));
 
     MPI_Finalize();
 

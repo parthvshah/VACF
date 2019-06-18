@@ -56,13 +56,14 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step)
+void readData(int start, int step, char *fileName)
 {
     int timestep, particle, index;
     double xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("HISTORY_CLEAN", "r");
+    // "./HISTORY_atoms/HISTORY_CLEAN_864"
+    fp = fopen(fileName, "r");
     if (fp == NULL)
         return;
 
@@ -82,6 +83,7 @@ void readData(int start, int step)
 int main(int argc, char **argv)
 {
     int rank, wSize, lStart1, lEnd1, lStart2, lEnd2, chunk, remainder;
+    double batch1Start, batch1End, batch2Start, batch2End;
     MPI_Status status;
 
     MPI_Init(&argc, &argv);
@@ -99,6 +101,7 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
+        char fileName[256];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -107,6 +110,8 @@ int main(int argc, char **argv)
                 N = atoi(argv[++c]);
             else if (!strcmp(argv[c], "-i"))
                 tmax = atoi(argv[++c]);
+            else if (!strcmp(argv[c], "-f"))
+                sscanf(argv[++c], "%s", fileName);
             else
             {
                 fprintf(stderr, "[Error] Command-line argument not recognized.\n");
@@ -120,7 +125,7 @@ int main(int argc, char **argv)
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
         padding(M);
-        readData(start, step);
+        readData(start, step, fileName);
 
         fprintf(stdout, "timestep, vacf\n");
     }
@@ -136,6 +141,8 @@ int main(int argc, char **argv)
     remainder = tmax - (chunk * wSize * 2);
     lStart1 = (rank * chunk) + 1;
     lEnd1 = lStart1 + chunk - 1;
+
+    batch1Start = MPI_Wtime();
 
     for (int dt = lStart1; dt <= lEnd1; dt++)
     {
@@ -157,6 +164,9 @@ int main(int argc, char **argv)
         fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
+    batch1End = MPI_Wtime();
+    batch2Start = MPI_Wtime();
+
     lEnd2 = (tmax - remainder) - (rank * chunk);
     lStart2 = lEnd2 - chunk + 1;
 
@@ -164,10 +174,7 @@ int main(int argc, char **argv)
     {
         lEnd2 += remainder;
     }
-
-    printf("%d) %d - %d\n", rank, lStart1, lEnd1);
-    printf("%d) %d - %d\n", rank, lStart2, lEnd2);
-
+    // Batch2
     for (int dt = lStart2; dt <= lEnd2; dt++)
     {
         count = 0;
@@ -187,6 +194,9 @@ int main(int argc, char **argv)
         accumalate /= ((N - 1) * count);
         fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
+    batch2End = MPI_Wtime();
+
+    // printf("%d) Time for batch = %lf\n", rank, (batch1End-batch1Start)+(batch2End-batch2Start));
 
     MPI_Finalize();
 
