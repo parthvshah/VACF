@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------
 
 TIMEFORMAT=%R
+FILE="HISTORY"
 HISTORY_CLEAN_FILENAME="./HISTORY_atoms/HISTORY_CLEAN_108"
 HOSTFILE_FILENAME="host_file"
 OUT_FILENAME="OUT_108"
@@ -15,17 +16,15 @@ echo "VACF AND COEFFICIENT OF DISSFUSION"
 # User modified variables
 # --------------------------------------------------------------------
 
-FILE="HISTORY"
 START=50000
 STOP=100000
-# STOP=86650
 STEP=10
 PARTICLES=108
 ITERATIONS=1728
 
 CLEAN=false
 PLOT=false
-PARALLEL=true
+PARALLEL=false
 LOCAL=false
 
 THREADS=4
@@ -39,7 +38,7 @@ GRAPH_UPPER=166
 
 if [ "$CLEAN" = true ] ; then
     echo "[INFO] Cleaning data"
-    time python3 clean.py > $HISTORY_CLEAN_FILENAME
+    time python3 clean.py $FILE > $HISTORY_CLEAN_FILENAME
 fi
 
 if [ "$PARALLEL" = true ]; then

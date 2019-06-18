@@ -1,4 +1,8 @@
-f = open('HISTORY_500', 'r')
+import sys
+
+fileName = sys.argv[1]
+
+f = open(fileName, 'r')
 lines = f.readlines()
 for x in range(len(lines)):
     if(lines[x][0]=='t'):
