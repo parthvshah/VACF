@@ -75,43 +75,63 @@ void readData(int start, int step, char *fileName)
 
 int main(int argc, char **argv)
 {
+    int rank, wSize, NStart, NEnd, chunk, remainder;
+    MPI_Status status;
+
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &wSize);
+
     int start;
     int stop;
     int step;
-    int tmax = 0;
-
     int N, M;
-    
-    char fileName[256];
-    for (int c = 1; c < argc; c++)
-    {
-        if (!strcmp(argv[c], "-p"))
-            sscanf(argv[++c], "%d,%d,%d", &start, &stop, &step);
-        else if (!strcmp(argv[c], "-a"))
-            N = atoi(argv[++c]);
-        else if (!strcmp(argv[c], "-i"))
-            tmax = atoi(argv[++c]);
-        else if (!strcmp(argv[c], "-f"))
-            sscanf(argv[++c], "%s", fileName);
-        else
-        {
-            fprintf(stderr, "[Error] Command-line argument not recognized.\n");
-            exit(-1);
-        }
-    }
-
-    N++;                             // Number of particles
-    M = ((stop - start) / step) + 1; // Number of timesteps
-
-    tmax = (tmax == 0) ? (M / 3) : tmax;
-
-    padding(M);
-    readData(start, step, fileName);
-
-    fprintf(stdout, "timestep, vacf\n");
+    int tmax = 0;
 
     double accumalate, particle;
     int count;
+
+    if (rank == 0)
+    {
+        char fileName[256];
+        for (int c = 1; c < argc; c++)
+        {
+            if (!strcmp(argv[c], "-p"))
+                sscanf(argv[++c], "%d,%d,%d", &start, &stop, &step);
+            else if (!strcmp(argv[c], "-a"))
+                N = atoi(argv[++c]);
+            else if (!strcmp(argv[c], "-i"))
+                tmax = atoi(argv[++c]);
+            else if (!strcmp(argv[c], "-f"))
+                sscanf(argv[++c], "%s", fileName);
+            else
+            {
+                fprintf(stderr, "[Error] Command-line argument not recognized.\n");
+                exit(-1);
+            }
+        }
+
+        N++;                             // Number of particles
+        M = ((stop - start) / step) + 1; // Number of timesteps
+
+        tmax = (tmax == 0) ? (M / 3) : tmax;
+
+        padding(M);
+        readData(start, step, fileName);
+
+        fprintf(stdout, "timestep, vacf\n");
+    }
+
+    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    double *lCorr = (double *)malloc(sizeof(double) * (tmax + 1));
+    lCorr[0] = 0.0;
+
     for (int dt = 1; dt <= tmax; dt++)
     {
         count = 0;
@@ -119,7 +139,8 @@ int main(int argc, char **argv)
         for (int t = 0; t < (M - dt); t++)
         {
             particle = 0.0;
-            for (int i = 1; i < N; i++)
+            // for (int i = 1; i < N; i++)
+            for (int i = NStart; i < NEnd; i++)
             {
                 particle += xData[i][t] * xData[i][t + dt] +
                             yData[i][t] * yData[i][t + dt] +
@@ -129,8 +150,10 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
+        lCorr[dt] = accumalate;
+        // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
+    MPI_Finalize();
     return 0;
 }
