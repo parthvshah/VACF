@@ -180,10 +180,10 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        // fprintf(stdout, "%d, %e\n", dt, accumalate);
+        fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
     batchEnd = MPI_Wtime();
-    printf("%d) Time for batch = %lf\n", rank, (batchEnd-batchStart));
+    // printf("%d) Time for batch = %lf\n", rank, (batchEnd-batchStart));
 
     MPI_Finalize();
 

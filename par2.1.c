@@ -151,7 +151,7 @@ int main(int argc, char **argv)
     lStart = ((wRank - (wRank%12)) / 12) * lChunk + 1;
     lEnd = lStart + lChunk - 1;
 
-    if((lRemainder != 0) && (((wRank - (wRank%12)) / 12) == 84))
+    if((lRemainder != 0) && (((wRank - (wRank%12)) / 12) == 12))
     {
         lEnd += lRemainder;
     }
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
     
     if (rRank == 0)
     {
-        for (int k = 1; k <= tmax; k++)
+        for (int k = 1; k <= (tmax / (wSize/12)); k++)
         {
             fprintf(stdout, "%d, %e\n", ((wRank/12)*lChunk) + k, gCorr[k]);
         }
