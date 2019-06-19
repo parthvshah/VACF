@@ -132,6 +132,15 @@ int main(int argc, char **argv)
     double *lCorr = (double *)malloc(sizeof(double) * (tmax + 1));
     lCorr[0] = 0.0;
 
+    double *gCorr = (double *)malloc(sizeof(double) * (tmax + 1));
+    gCorr[0] = 0.0;
+
+    // Atom calculation
+    chunk = (N - 1) / wSize;
+    remainder = (N - 1) - (chunk * wSize);
+    NStart = (rank * chunk) + 1;
+    NEnd = NStart + chunk - 1;
+
     for (int dt = 1; dt <= tmax; dt++)
     {
         count = 0;
@@ -140,7 +149,7 @@ int main(int argc, char **argv)
         {
             particle = 0.0;
             // for (int i = 1; i < N; i++)
-            for (int i = NStart; i < NEnd; i++)
+            for (int i = NStart; i <= NEnd; i++)
             {
                 particle += xData[i][t] * xData[i][t + dt] +
                             yData[i][t] * yData[i][t + dt] +
@@ -152,6 +161,16 @@ int main(int argc, char **argv)
         accumalate /= ((N - 1) * count);
         lCorr[dt] = accumalate;
         // fprintf(stdout, "%d, %e\n", dt, accumalate);
+    }
+
+    MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (rank == 0)
+    {
+        for (int k = 1; k <= tmax; k++)
+        {
+            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+        }
     }
 
     MPI_Finalize();
