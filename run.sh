@@ -54,8 +54,7 @@ if [ "$PARALLEL" = true ]; then
 else
     echo "[INFO] Generating VACF plot (series) for $ITERATIONS iterations."
     gcc -o vacf seq.c -g -O3 -std=c99
-    time ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS -f $HISTORY_CLEAN_FILENAME > $OUT_FILENAME
-    
+    time ./vacf -p $START,$STOP,$STEP -a $PARTICLES -i $ITERATIONS -f $HISTORY_CLEAN_FILENAME > $OUT_FILENAME  
 fi
 
 if [ "$PLOT" = true ] ; then

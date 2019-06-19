@@ -1,12 +1,10 @@
 /*
-Calculate Velocity Auto-Correlation (Parallel)
-This program calculates the VACF from a given HISTORY file. Scripts to clean the data,
-plot the graph and calculate the coefficient of diffusion are external and in python.
-
+VACF (Correlation Decomposition)
 Command line arguments:
     -p START,STOP,STEP
     -a PARTICLES
     -i ITERATIONS
+    -f FILENAME
 
 Algorithm:
     size = no. of processes
@@ -32,8 +30,6 @@ Algorithm:
             count += 1
             accumalate += particle
         print(dt, accumalate/((N-1)*count)
-
-Date: 6-6-2019
  */
 
 #include <stdio.h>

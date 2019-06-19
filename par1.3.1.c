@@ -1,33 +1,37 @@
 /*
-Calculate Velocity Auto-Correlation (Serial)
-This program calculates the VACF from a given HISTORY file. Scripts to clean the data,
-plot the graph and calculate the coefficient of diffusion are external and in python.
-
+VACF (Particle decomposition)
 Command line arguments:
     -p START,STOP,STEP
     -a PARTICLES
     -i ITERATIONS
+    -f FILENAME
 
 Algorithm:
     size = no. of processes
     M = no. of timesteps
     N = no. of particles
-    Vx, Vy, Vz = Velocity of a particle at timestep
-    tmax = M/3 
+    Vx, Vy, Vz = Velocity of a particle at timestep 
+    (0)
     Parse command line arguments
     Read data
+    (0-size)
+    Receive broadcasted information from 0
+    Calculate atoms in process
     for dt <- 1 to tmax
         count = 0
         accumalate = 0
         for t <- 0 to (M-dt)
             particle = 0.0
-            for i <- 1 to N
+            for i <- localNStart to localNStop
                 particle += Vx[i][t].Vx[i][t+dt] + Vy[i][t].Vy[i][t+dt] + Vz[i][t].Vz[i][t+dt]
             count += 1
             accumalate += particle
-        print(dt, accumalate/((N-1)*count)
+        localCorrelation[dt] = accumalate/((N-1)*count
+    (0)
+    Accumalate localCorrelation from each process and add it to globalCorrelation
+    for i <- 1 to tmax
+        print(i, globalCorrelation[i])
 
-Date: 6-6-2019
  */
 
 #include <stdio.h>
