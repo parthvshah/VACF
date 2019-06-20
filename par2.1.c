@@ -146,8 +146,8 @@ int main(int argc, char **argv)
     gCorr[0] = 0.0;
 
     // Correlation calculation
-    lChunk = tmax / rSize;
-    lRemainder = tmax - (lChunk * rSize);
+    lChunk = tmax / (wSize / rSize);
+    lRemainder = tmax - (lChunk * (wSize / rSize));
     lStart = ((wRank - (wRank%12)) / 12) * lChunk + 1;
     lEnd = lStart + lChunk - 1;
 
@@ -192,9 +192,9 @@ int main(int argc, char **argv)
     
     if (rRank == 0)
     {
-        for (int k = 1; k <= (tmax / (wSize/12)); k++)
+        for (int k = lStart; k <= lEnd; k++)
         {
-            fprintf(stdout, "%d, %e\n", ((wRank/12)*lChunk) + k, gCorr[k]);
+            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
         }
     }
 
