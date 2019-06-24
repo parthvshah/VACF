@@ -80,7 +80,9 @@ void readData(int start, int step, char *fileName)
 int main(int argc, char **argv)
 {
     int rank, wSize, NStart, NEnd, chunk, remainder;
+    double output[2];
     MPI_Status status;
+    MPI_File fp;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -123,7 +125,6 @@ int main(int argc, char **argv)
         padding(M);
         readData(start, step, fileName);
 
-        fprintf(stdout, "timestep, vacf\n");
     }
 
     MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -145,7 +146,7 @@ int main(int argc, char **argv)
     NStart = (rank * chunk) + 1;
     NEnd = NStart + chunk - 1;
 
-    if((remainder != 0) && (rank == (wSize-1)))
+    if ((remainder != 0) && (rank == (wSize - 1)))
     {
         NEnd += remainder;
     }
@@ -174,14 +175,19 @@ int main(int argc, char **argv)
 
     MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    MPI_File_open(MPI_COMM_WORLD, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
     if (rank == 0)
     {
         for (int k = 1; k <= tmax; k++)
         {
-            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+            output[0] = (double)k;
+            output[1] = gCorr[k];
+            MPI_File_write(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
+            // fprintf(stdout, "%d, %e\n", k, gCorr[k]);
         }
     }
 
+    MPI_File_close(&fp);
     MPI_Finalize();
     return 0;
 }

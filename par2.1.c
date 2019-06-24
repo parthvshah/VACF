@@ -76,7 +76,9 @@ void readData(int start, int step, char *fileName)
 int main(int argc, char **argv)
 {
     int wRank, wSize, lChunk, NChunk, lRemainder, NRemainder, NStart, NEnd, lStart, lEnd;
+    double output[2];
     MPI_Status status;
+    MPI_File fp;
 
     MPI_Init(&argc, &argv);
 
@@ -127,9 +129,6 @@ int main(int argc, char **argv)
 
         padding(M);
         readData(start, step, fileName);
-
-        fprintf(stdout, "timestep, vacf\n");
-
     }
 
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -148,10 +147,10 @@ int main(int argc, char **argv)
     // Correlation calculation
     lChunk = tmax / (wSize / rSize);
     lRemainder = tmax - (lChunk * (wSize / rSize));
-    lStart = ((wRank - (wRank%12)) / 12) * lChunk + 1;
+    lStart = ((wRank - (wRank % 12)) / 12) * lChunk + 1;
     lEnd = lStart + lChunk - 1;
 
-    if((lRemainder != 0) && (((wRank - (wRank%12)) / 12) == 12))
+    if ((lRemainder != 0) && (((wRank - (wRank % 12)) / 12) == 12))
     {
         lEnd += lRemainder;
     }
@@ -162,7 +161,7 @@ int main(int argc, char **argv)
     NStart = (rRank * NChunk) + 1;
     NEnd = NStart + NChunk - 1;
 
-    if((NRemainder != 0) && (rRank == (rSize-1)))
+    if ((NRemainder != 0) && (rRank == (rSize - 1)))
     {
         NEnd += NRemainder;
     }
@@ -198,6 +197,7 @@ int main(int argc, char **argv)
         }
     }
 
+    MPI_File_close(&fp);
     MPI_Finalize();
     
     return 0;

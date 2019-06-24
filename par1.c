@@ -78,8 +78,9 @@ void readData(int start, int step, char *fileName)
 int main(int argc, char **argv)
 {
     int rank, wSize, lStart, lEnd, chunk, remainder;
-    double batchStart, batchEnd;
+    double output[2];
     MPI_Status status;
+    MPI_File fp;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -122,42 +123,30 @@ int main(int argc, char **argv)
         padding(M);
         readData(start, step, fileName);
 
-        fprintf(stdout, "timestep, vacf\n");
-
-        chunk = tmax / wSize;
-        remainder = tmax - (wSize * chunk);
-
-        int sendStart, sendEnd;
-
-        lStart = 1;
-        lEnd = lStart - 1 + chunk;
-
-        for (int process = 1; process < wSize - 1; process++)
+        if(tmax % wSize != 0)
         {
-            sendStart = (process * chunk) + 1;
-            sendEnd = sendStart - 1 + chunk;
-            MPI_Send(&sendStart, 1, MPI_INT, process, 101, MPI_COMM_WORLD);
-            MPI_Send(&sendEnd, 1, MPI_INT, process, 102, MPI_COMM_WORLD);
+            tmax = tmax - (tmax % wSize);
         }
-        sendStart = ((wSize - 1) * chunk) + 1;
-        sendEnd = sendStart - 1 + chunk + remainder;
-        MPI_Send(&sendStart, 1, MPI_INT, wSize - 1, 101, MPI_COMM_WORLD);
-        MPI_Send(&sendEnd, 1, MPI_INT, wSize - 1, 102, MPI_COMM_WORLD);
-    }
 
-    if (rank != 0)
-    {
-        MPI_Recv(&lStart, 1, MPI_INT, 0, 101, MPI_COMM_WORLD, &status);
-        MPI_Recv(&lEnd, 1, MPI_INT, 0, 102, MPI_COMM_WORLD, &status);
     }
 
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    batchStart = MPI_Wtime();
+    chunk = tmax / wSize;
+    remainder = tmax - (wSize * chunk);
+
+    lStart = (rank * chunk) + 1;
+    lEnd = lStart + chunk - 1;
+
+    MPI_File_open(MPI_COMM_WORLD, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
+    int viewLength = chunk;
+    MPI_File_set_view(fp, (rank * sizeof(double) * 2 * viewLength), MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
+
     // for (int dt = 1; dt <= tmax; dt++)
     for (int dt = lStart; dt <= lEnd; dt++)
     {
@@ -176,11 +165,12 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
+        output[0] = (double)dt;
+        output[1] = accumalate;
+        MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
     }
-    batchEnd = MPI_Wtime();
-    // printf("%d) Time for batch = %lf\n", rank, (batchEnd-batchStart));
 
+    MPI_File_close(&fp);
     MPI_Finalize();
 
     return 0;

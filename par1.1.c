@@ -87,7 +87,9 @@ int main(int argc, char **argv)
 {
     int rank, wSize, lStart1, lEnd1, lStart2, lEnd2, chunk, remainder;
     double batch1Start, batch1End, batch2Start, batch2End;
+    double output[2];
     MPI_Status status;
+    MPI_File fp;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -130,12 +132,16 @@ int main(int argc, char **argv)
         padding(M);
         readData(start, step, fileName);
 
-        fprintf(stdout, "timestep, vacf\n");
+        if (tmax % wSize != 0)
+        {
+            tmax = tmax - (tmax % wSize);
+        }
+
     }
 
-    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -145,7 +151,9 @@ int main(int argc, char **argv)
     lStart1 = (rank * chunk) + 1;
     lEnd1 = lStart1 + chunk - 1;
 
-    batch1Start = MPI_Wtime();
+    MPI_File_open(MPI_COMM_WORLD, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
+    int viewLength = chunk;
+    MPI_File_set_view(fp, (rank * sizeof(double) * 2 * viewLength), MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
 
     for (int dt = lStart1; dt <= lEnd1; dt++)
     {
@@ -164,16 +172,16 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
+        output[0] = (double)dt;
+        output[1] = accumalate;
+        MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
+        // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
-
-    batch1End = MPI_Wtime();
-    batch2Start = MPI_Wtime();
 
     lEnd2 = (tmax - remainder) - (rank * chunk);
     lStart2 = lEnd2 - chunk + 1;
 
-    if(rank == 0)
+    if (rank == 0)
     {
         lEnd2 += remainder;
     }
@@ -195,12 +203,13 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
+        output[0] = (double)dt;
+        output[1] = accumalate;
+        MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
+        // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
-    batch2End = MPI_Wtime();
 
-    // printf("%d) Time for batch = %lf\n", rank, (batch1End-batch1Start)+(batch2End-batch2Start));
-
+    MPI_File_close(&fp);
     MPI_Finalize();
 
     return 0;
