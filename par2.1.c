@@ -86,12 +86,22 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
 
     int colour = wRank / 12;
-    MPI_Comm MPI_COMM_ROW;
+    MPI_Comm MPI_COMM_ROW, MPI_COMM_ROWROOT;
     MPI_Comm_split(MPI_COMM_WORLD, colour, wRank, &MPI_COMM_ROW);
 
     int rRank, rSize;
     MPI_Comm_rank(MPI_COMM_ROW, &rRank);
     MPI_Comm_size(MPI_COMM_ROW, &rSize);
+
+    int *ranks = (int *)malloc(sizeof(int)*wSize/12);
+    int iCount = 0;
+    for(int iRank = 0; iRank<wSize; iRank++)
+        if(iRank%12==0)
+            ranks[iCount++] = iRank;
+    MPI_Group MPI_GROUP_WORLD, MPI_GROUP_ROWROOT;
+    MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
+    MPI_Group_incl(MPI_GROUP_WORLD, (wSize / 12), ranks, &MPI_GROUP_ROWROOT);
+    MPI_Comm_create(MPI_COMM_WORLD, MPI_GROUP_ROWROOT, &MPI_COMM_ROWROOT);
 
     int start;
     int stop;
@@ -166,6 +176,14 @@ int main(int argc, char **argv)
         NEnd += NRemainder;
     }
 
+    MPI_File_open(MPI_COMM_ROWROOT, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
+
+    if(rRank == 0)
+    {
+        int viewLength = lChunk;
+        MPI_File_set_view(fp, (((wRank - (wRank % 12)) / 12) * sizeof(double) * 2 * viewLength), MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
+    }
+
     for (int dt = lStart; dt <= lEnd; dt++)
     {
         count = 0;
@@ -193,7 +211,10 @@ int main(int argc, char **argv)
     {
         for (int k = lStart; k <= lEnd; k++)
         {
-            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+            output[0] = (double)k;
+            output[1] = gCorr[k];
+            // fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+            MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
         }
     }
 
