@@ -34,7 +34,7 @@ Date: 6-6-2019
 #include <stdlib.h>
 #include <string.h>
 
-#define ROW 1024
+#define ROW 2064
 #define COL 5120
 
 double xData[ROW][COL];

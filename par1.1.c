@@ -44,7 +44,7 @@ Algorithm:
 #include <string.h>
 #include <mpi.h>
 
-#define ROW 1024
+#define ROW 2064
 #define COL 5120
 
 double xData[ROW][COL];
