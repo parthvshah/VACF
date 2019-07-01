@@ -44,14 +44,10 @@ Algorithm:
 #include <string.h>
 #include <mpi.h>
 
-#define ROW 2064
-#define COL 5120
+#define ROW 501
+#define COL 20000001
 
-double xData[ROW][COL];
-double yData[ROW][COL];
-double zData[ROW][COL];
-
-void padding(int n)
+void padding(int n, float **xData, float **yData, float **zData)
 {
     for (int i = 0; i < n; i++)
     {
@@ -59,26 +55,32 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step, char *fileName)
+void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData)
 {
-    int timestep, particle, index;
-    double xVel, yVel, zVel;
+    int timestep, particle, one, index, count, maxCount;
+    float xVel, yVel, zVel;
     FILE *fp;
 
-    // "./HISTORY_atoms/HISTORY_CLEAN_864"
-    fp = fopen(fileName, "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_l", "r");
     if (fp == NULL)
         return;
+    
+    count = 1;
+    maxCount = (stop-start) / step * N;
 
-    char line[128];
+    char line[256];
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        sscanf(line, "%d %d %lf %lf %lf", &timestep, &particle, &xVel, &yVel, &zVel);
+        if(count == maxCount)
+            return;
+        sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
 
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
+
+        count++;
     }
     fclose(fp);
 }
@@ -86,10 +88,8 @@ void readData(int start, int step, char *fileName)
 int main(int argc, char **argv)
 {
     int rank, wSize, lStart1, lEnd1, lStart2, lEnd2, chunk, remainder;
-    double batch1Start, batch1End, batch2Start, batch2End;
-    double output[2];
+    double readStart, readEnd;
     MPI_Status status;
-    MPI_File fp;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
-        char fileName[256];
+        char fileName[128];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -129,8 +129,8 @@ int main(int argc, char **argv)
 
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
-        padding(M);
-        readData(start, step, fileName);
+        // padding(M);
+        // readData(start, step, fileName);
 
         if (tmax % wSize != 0)
         {
@@ -139,21 +139,72 @@ int main(int argc, char **argv)
 
     }
 
+    float **xData = (float **)malloc(ROW * sizeof(float *));
+    if(xData==NULL)
+    {
+        fprintf(stderr, "[Error] xData allocation failed.\n");
+        exit(1);
+    } 
+    for (int i=0; i<ROW; i++)
+    { 
+        xData[i] = (float *)malloc(COL * sizeof(float));
+        if(xData[i]==NULL)
+        {
+            fprintf(stderr, "[Error] xData internal allocation failed.\n");
+            exit(1);
+        }
+    }
+    
+    float **yData = (float **)malloc(ROW * sizeof(float *));
+    if(yData==NULL)
+    {
+        fprintf(stderr, "[Error] yData allocation failed.\n");
+        exit(1);        
+    }  
+    for (int i=0; i<ROW; i++)
+    { 
+        yData[i] = (float *)malloc(COL * sizeof(float));
+        if(yData[i]==NULL)
+        {
+            fprintf(stderr, "[Error] yData internal allocation failed.\n");
+            exit(1);
+        }  
+    }
+    
+    float **zData = (float **)malloc(ROW * sizeof(float *));
+    if(zData==NULL)
+    {
+        fprintf(stderr, "[Error] zData allocation failed.\n");
+        exit(1);        
+    }  
+    for (int i=0; i<ROW; i++)
+    { 
+        zData[i] = (float *)malloc(COL * sizeof(float));
+        if(zData[i]==NULL)
+        {
+            fprintf(stderr, "[Error] zData internal allocation failed.\n");
+            exit(1);
+        }    
+    }
+
+    MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&stop, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&step, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    readStart = MPI_Wtime();
+
+    padding(M, xData, yData, zData);
+    readData(start, stop, step, N, xData, yData, zData);
+
+    readEnd = MPI_Wtime();
 
     chunk = tmax / (wSize * 2);
     remainder = tmax - (chunk * wSize * 2);
     lStart1 = (rank * chunk) + 1;
     lEnd1 = lStart1 + chunk - 1;
-
-    MPI_File_open(MPI_COMM_WORLD, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
-    int viewLength = chunk;
-    MPI_File_set_view(fp, (rank * sizeof(double) * 2 * viewLength), MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
 
     for (int dt = lStart1; dt <= lEnd1; dt++)
     {
@@ -172,10 +223,7 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        output[0] = (double)dt;
-        output[1] = accumalate;
-        MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
-        // fprintf(stdout, "%d, %e\n", dt, accumalate);
+        fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
     lEnd2 = (tmax - remainder) - (rank * chunk);
@@ -203,13 +251,11 @@ int main(int argc, char **argv)
             accumalate += particle;
         }
         accumalate /= ((N - 1) * count);
-        output[0] = (double)dt;
-        output[1] = accumalate;
-        MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
-        // fprintf(stdout, "%d, %e\n", dt, accumalate);
+        fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
+    if(rank == 0)
+        fprintf(stdout, "Read Time: %lf \n", (readEnd-readStart));
 
-    MPI_File_close(&fp);
     MPI_Finalize();
 
     return 0;
