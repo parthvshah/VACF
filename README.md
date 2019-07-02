@@ -2,6 +2,7 @@
 Serial and parallel implementation of Velocity Auto-Correlation Function
 
 ## Naming
+- ```Mpar1.c``` - [Massively Parallel] Coorelation decomposition
 - ```par1.c``` - Correlation decomposition
 - ```par1.1.c``` - Correlation decomposition, load balancing
 - ```par1.3.c``` - Particle decomposition, barrier implementation

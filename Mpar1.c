@@ -1,5 +1,5 @@
 /*
-VACF (Correlation Decompositon with Load Balancing)
+VACF (Massively Parallel Correlation Decompositon)
 Command line arguments:
     -p START,STOP,STEP
     -a PARTICLES
@@ -37,17 +37,14 @@ Algorithm:
             count += 1
             accumalate += particle
         print(dt, accumalate/((N-1)*count)
- */
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
 
-#define ROW 501
-#define COL 20000001
-
-void padding(int n, float **xData, float **yData, float **zData)
+void padding(int n, double **xData, double **yData, double **zData)
 {
     for (int i = 0; i < n; i++)
     {
@@ -55,27 +52,27 @@ void padding(int n, float **xData, float **yData, float **zData)
     }
 }
 
-void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData)
+void readData(int lTimesteps, int start, int stop, int step, int N, int rank, double **xData, double **yData, double** zData)
 {
-    int timestep, particle, one, index, count, maxCount;
-    float xVel, yVel, zVel;
+    int timestep, particle, one, index, count;
+    double xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_l", "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_20", "r");
     if (fp == NULL)
         return;
     
-    count = 1;
-    maxCount = (stop-start) / step * N;
+    count = 0;
 
     char line[256];
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        if(count == maxCount)
+        if(count == lTimesteps)
             return;
-        sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
+        sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
-
+        if(count==1 || count==(lTimesteps-1))
+            printf("%d) Timestep: %d Particle: %d\n", rank, timestep, particle);
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
@@ -87,8 +84,7 @@ void readData(int start, int stop, int step, int N, float **xData, float **yData
 
 int main(int argc, char **argv)
 {
-    int rank, wSize, lStart1, lEnd1, lStart2, lEnd2, chunk, remainder;
-    double readStart, readEnd;
+    int rank, wSize, lStart, lEnd, chunk, remainder;
     MPI_Status status;
 
     MPI_Init(&argc, &argv);
@@ -106,7 +102,7 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
-        char fileName[128];
+        char fileName[256];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -129,26 +125,33 @@ int main(int argc, char **argv)
 
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
-        // padding(M);
-        // readData(start, step, fileName);
-
-        if (tmax % wSize != 0)
-        {
-            tmax = tmax - (tmax % wSize);
-        }
-
     }
 
-    float **xData = (float**) malloc(sizeof(float*) * ROW);
+    MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&stop, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&step, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    int tStart, tStop, lTimesteps;
+    // Calculate using memory
+    lTimesteps = (M-1)/wSize;
+    tStart = (rank*step) + start;
+    tStop = tStart + (lTimesteps*step);
+
+    printf("%d) lTime: %d tStart: %d tstop: %d \n", rank, lTimesteps, tStart, tStop);
+
+    double **xData = (double**) malloc(sizeof(double*) * N);
     if(!xData)
     {
         free(xData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<ROW; ii++)
+    for (int ii = 0; ii<N; ii++)
     {
-        xData[ii] = (float*) malloc(sizeof(float) * COL);
+        xData[ii] = (double*) malloc(sizeof(double) * lTimesteps);
         if(!xData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
@@ -160,16 +163,16 @@ int main(int argc, char **argv)
     }
 
     
-    float **yData = (float**) malloc(sizeof(float*) * ROW);
+    double **yData = (double**) malloc(sizeof(double*) * N);
     if(!yData)
     {
         free(yData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<ROW; ii++)
+    for (int ii = 0; ii<N; ii++)
     {
-        yData[ii] = (float*) malloc(sizeof(float) * COL);
+        yData[ii] = (double*) malloc(sizeof(double) * lTimesteps);
         if(!yData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
@@ -181,16 +184,16 @@ int main(int argc, char **argv)
     }
 
     
-    float **zData = (float**) malloc(sizeof(float*) * ROW);
+    double **zData = (double**) malloc(sizeof(double*) * N);
     if(!zData)
     {
         free(zData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<ROW; ii++)
+    for (int ii = 0; ii<N; ii++)
     {
-        zData[ii] = (float*) malloc(sizeof(float) * COL);
+        zData[ii] = (double*) malloc(sizeof(double) * lTimesteps);
         if(!zData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
@@ -201,86 +204,34 @@ int main(int argc, char **argv)
         }
     }
 
+    readData(lTimesteps, tStart, tStop, step, N, rank, xData, yData, zData);
 
-    MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&stop, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&step, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    // chunk = tmax / wSize;
+    // remainder = tmax - (wSize * chunk);
 
-    readStart = MPI_Wtime();
+    // lStart = (rank * chunk) + 1;
+    // lEnd = lStart + chunk - 1;
 
-    padding(M, xData, yData, zData);
-    readData(start, stop, step, N, xData, yData, zData);
-
-    readEnd = MPI_Wtime();
-
-    chunk = tmax / (wSize * 2);
-    remainder = tmax - (chunk * wSize * 2);
-    lStart1 = (rank * chunk) + 1;
-    lEnd1 = lStart1 + chunk - 1;
-
-    for (int dt = lStart1; dt <= lEnd1; dt++)
-    {
-        count = 0;
-        accumalate = 0.0;
-        for (int t = 0; t < (M - dt); t++)
-        {
-            particle = 0.0;
-            for (int i = 1; i < N; i++)
-            {
-                particle += xData[i][t] * xData[i][t + dt] +
-                            yData[i][t] * yData[i][t + dt] +
-                            zData[i][t] * zData[i][t + dt];
-            }
-            count++;
-            accumalate += particle;
-        }
-        accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
-    }
-
-    lEnd2 = (tmax - remainder) - (rank * chunk);
-    lStart2 = lEnd2 - chunk + 1;
-
-    if (rank == 0)
-    {
-        lEnd2 += remainder;
-    }
-    // Batch2
-    for (int dt = lStart2; dt <= lEnd2; dt++)
-    {
-        count = 0;
-        accumalate = 0.0;
-        for (int t = 0; t < (M - dt); t++)
-        {
-            particle = 0.0;
-            for (int i = 1; i < N; i++)
-            {
-                particle += xData[i][t] * xData[i][t + dt] +
-                            yData[i][t] * yData[i][t + dt] +
-                            zData[i][t] * zData[i][t + dt];
-            }
-            count++;
-            accumalate += particle;
-        }
-        accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt, accumalate);
-    }
-    if(rank == 0)
-        fprintf(stdout, "Read Time: %lf \n", (readEnd-readStart));
-
-    for(int k = ROW; k>=0; k--)
-    {
-        free(xData[k]);
-        free(yData[k]);
-        free(zData[k]);
-    }
-
-    free(xData);
-    free(yData);
-    free(zData);
+    // // for (int dt = 1; dt <= tmax; dt++)
+    // for (int dt = lStart; dt <= lEnd; dt++)
+    // {
+    //     count = 0;
+    //     accumalate = 0.0;
+    //     for (int t = 0; t < (M - dt); t++)
+    //     {
+    //         particle = 0.0;
+    //         for (int i = 1; i < N; i++)
+    //         {
+    //             particle += xData[i][t] * xData[i][t + dt] +
+    //                         yData[i][t] * yData[i][t + dt] +
+    //                         zData[i][t] * zData[i][t + dt];
+    //         }
+    //         count++;
+    //         accumalate += particle;
+    //     }
+    //     accumalate /= ((N - 1) * count);
+    //     fprintf(stdout, "%d, %e\n", dt, accumalate);
+    // }
 
     MPI_Finalize();
 
