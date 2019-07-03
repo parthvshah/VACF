@@ -17,9 +17,9 @@ echo "VACF AND COEFFICIENT OF DISSFUSION"
 # --------------------------------------------------------------------
 
 START=50000
-STOP=50100
+STOP=50200
 STEP=10
-PARTICLES=20
+PARTICLES=25
 ITERATIONS=3
 
 CLEAN=false

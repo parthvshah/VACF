@@ -61,18 +61,27 @@ void readData(int lTimesteps, int start, int stop, int step, int N, int rank, do
     fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_20", "r");
     if (fp == NULL)
         return;
-    
-    count = 0;
 
+    // Seek
     char line[256];
+
+    short int skipLines = rank*(N-1);
+    count = 0;
+    while (count != skipLines)
+    {
+        fgets(line, sizeof line, fp);
+        count++;
+    }
+    
+    short int readLines = lTimesteps*(N-1);
+    count = 0;
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        if(count == lTimesteps)
+        if(count == readLines)
             return;
         sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
-        if(count==1 || count==(lTimesteps-1))
-            printf("%d) Timestep: %d Particle: %d\n", rank, timestep, particle);
+
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
@@ -140,8 +149,6 @@ int main(int argc, char **argv)
     tStart = (rank*step) + start;
     tStop = tStart + (lTimesteps*step);
 
-    printf("%d) lTime: %d tStart: %d tstop: %d \n", rank, lTimesteps, tStart, tStop);
-
     double **xData = (double**) malloc(sizeof(double*) * N);
     if(!xData)
     {
@@ -203,8 +210,22 @@ int main(int argc, char **argv)
             return EXIT_FAILURE;
         }
     }
-
+    
     readData(lTimesteps, tStart, tStop, step, N, rank, xData, yData, zData);
+
+    if(rank==0)
+    {
+        printf("%d)\n", rank);
+
+        for(int iii = 0; iii<N; iii++)
+        {
+            for(int jjj = 0; jjj<lTimesteps; jjj++)
+            {
+                printf("%e  ", xData[iii][jjj]);
+            }
+            printf("\n");
+        }
+    }
 
     // chunk = tmax / wSize;
     // remainder = tmax - (wSize * chunk);
