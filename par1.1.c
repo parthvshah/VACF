@@ -139,19 +139,21 @@ int main(int argc, char **argv)
 
     }
 
-    float **xData = (float**) malloc(sizeof(float*) * ROW);
+    float **xData = NULL;
+    xData = (float**) malloc(sizeof(float*) * ROW);
     if(!xData)
     {
         free(xData);
-        fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", rank);
         return EXIT_FAILURE;
     }
     for (int ii = 0; ii<ROW; ii++)
     {
+        xData[ii] = NULL;
         xData[ii] = (float*) malloc(sizeof(float) * COL);
         if(!xData[ii])
         {
-            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", rank);
             for(int jj = ii; jj>=0; jj--)
                 free(xData[jj]);
             
@@ -160,19 +162,21 @@ int main(int argc, char **argv)
     }
 
     
-    float **yData = (float**) malloc(sizeof(float*) * ROW);
+    float **yData = NULL;
+    yData = (float**) malloc(sizeof(float*) * ROW);
     if(!yData)
     {
         free(yData);
-        fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", rank);
         return EXIT_FAILURE;
     }
     for (int ii = 0; ii<ROW; ii++)
     {
+        yData[ii] = NULL;
         yData[ii] = (float*) malloc(sizeof(float) * COL);
         if(!yData[ii])
         {
-            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", rank);
             for(int jj = ii; jj>=0; jj--)
                 free(yData[jj]);
                 
@@ -181,19 +185,21 @@ int main(int argc, char **argv)
     }
 
     
-    float **zData = (float**) malloc(sizeof(float*) * ROW);
+    float **zData = NULL;
+    zData = (float**) malloc(sizeof(float*) * ROW);
     if(!zData)
     {
         free(zData);
-        fprintf(stdout, "[Error - %d] xData not allocated.\n", EXIT_FAILURE);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", rank);
         return EXIT_FAILURE;
     }
     for (int ii = 0; ii<ROW; ii++)
     {
+        zData[ii] = NULL;
         zData[ii] = (float*) malloc(sizeof(float) * COL);
         if(!zData[ii])
         {
-            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", EXIT_FAILURE);
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", rank);
             for(int jj = ii; jj>=0; jj--)
                 free(zData[jj]);
             
@@ -221,6 +227,7 @@ int main(int argc, char **argv)
     lStart1 = (rank * chunk) + 1;
     lEnd1 = lStart1 + chunk - 1;
 
+    // Batch1
     for (int dt = lStart1; dt <= lEnd1; dt++)
     {
         count = 0;
@@ -268,19 +275,22 @@ int main(int argc, char **argv)
         accumalate /= ((N - 1) * count);
         fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
-    if(rank == 0)
-        fprintf(stdout, "Read Time: %lf \n", (readEnd-readStart));
 
-    for(int k = ROW; k>=0; k--)
-    {
-        free(xData[k]);
-        free(yData[k]);
-        free(zData[k]);
-    }
+    // if(rank == 0)
+    // {
+    //     fprintf(stdout, "Read Time: %lf \n", (readEnd-readStart));
 
-    free(xData);
-    free(yData);
-    free(zData);
+    //     for(int k = ROW; k>=0; k--)
+    //     {
+    //         free(xData[k]);
+    //         free(yData[k]);
+    //         free(zData[k]);
+    //     }
+
+    //     free(xData);
+    //     free(yData);
+    //     free(zData);
+    // }
 
     MPI_Finalize();
 

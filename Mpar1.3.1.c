@@ -3,10 +3,10 @@
 #include <string.h>
 #include <mpi.h>
 
-void readData(int row, int col, int batch, int rank, int wSize, double **xData, double **yData, double **zData, int start, int step, int batchParticles)
+void readData(int row, int col, int batch, int rank, int wSize, double **xData, double **yData, double **zData, int start, int stop, int step, int batchParticles)
 {
     int startParticle, endParticle;
-    startParticle = (batch * (batchParticles * wSize)) + 1;
+    startParticle = (batch * (batchParticles * wSize)) + (batchParticles * rank) + 1;
     endParticle = startParticle + batchParticles - 1;
 
     FILE *fp;
@@ -27,39 +27,46 @@ void readData(int row, int col, int batch, int rank, int wSize, double **xData, 
         {
             fprintf(stderr, "[Error - %d] Internal fileNames not allocated. \n", rank);
             for(int zz = z; zz>=0; zz--)
-                free(xData[zz]);
+                free(fileNames[zz]);
 
             return;
         }
     }
 
-    char buffer[4];
+    char buffer[6];
     for(int i = 0; i < batchParticles; i++)
     {
-        snprintf(buffer, 4, "%03d", (startParticle+i));
+        snprintf(buffer, 6, "./%03d", (startParticle+i));
         strcpy(fileNames[i], buffer);
     }
 
     int timestep, rParticle, one, index;
     double xVel, yVel, zVel;
 
-    for (int p = 0; p <= batchParticles; p++)
+    for (int p = 0; p < batchParticles; p++)
     {
         fp = fopen(fileNames[p], "r");
         if (fp == NULL)
         {
-            fprintf(stderr, "[Error - %d] File open error. \n", rank);
+            fprintf(stderr, "[Error - %d] %s: File open error. \n", rank, fileNames[p]);
             return;
         }
+
+        int count = 0;
+        int readLines = (stop - start) / step;
+
         char line[256];
         while (fgets(line, sizeof line, fp) != NULL)
         {
+            if(count == readLines)
+                break;
             sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &rParticle, &one, &xVel, &yVel, &zVel);
             index = (timestep - start) / step;
 
             xData[p][index] = xVel;
             yData[p][index] = yVel;
             zData[p][index] = zVel;
+            count++;
         }
         fclose(fp);
     }
@@ -86,7 +93,6 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
-        char fileName[256];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -95,8 +101,6 @@ int main(int argc, char **argv)
                 N = atoi(argv[++c]);
             else if (!strcmp(argv[c], "-i"))
                 tmax = atoi(argv[++c]);
-            else if (!strcmp(argv[c], "-f"))
-                sscanf(argv[++c], "%s", fileName);
             else
             {
                 fprintf(stderr, "[Error] Command-line argument not recognized. \n");
@@ -211,7 +215,7 @@ int main(int argc, char **argv)
     for (int batch = 0; batch < batches; batch++)
     {
         // Read into 3 * arrays based on batch and rank
-        readData(batchParticles, M, batch, rank, wSize, xData, yData, zData, start, step, batchParticles);
+        readData(batchParticles, M, batch, rank, wSize, xData, yData, zData, start, stop, step, batchParticles);
         // Compute lCorr
         for (int dt = 1; dt <= tmax; dt++)
         {
@@ -236,18 +240,19 @@ int main(int argc, char **argv)
         }
     }
 
-    for(int k = (M-1); k>=0; k--)
-    {
-        free(xData[k]);
-        free(yData[k]);
-        free(zData[k]);
-    }
+    // MPI_Barrier(MPI_COMM_WORLD);
+    // for(int k = (M-1); k>=0; k--)
+    // {
+    //     free(xData[k]);
+    //     free(yData[k]);
+    //     free(zData[k]);
+    // }
 
-    free(xData);
-    free(yData);
-    free(zData);
-    free(lCorr);
-    free(gCorr);
+    // free(xData);
+    // free(yData);
+    // free(zData);
+    // free(lCorr);
+    // free(gCorr);
 
     MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
