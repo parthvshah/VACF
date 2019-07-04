@@ -3,9 +3,72 @@
 #include <string.h>
 #include <mpi.h>
 
-void readData()
+void readData(int row, int col, int batch, int rank, int wSize, double **xData, double **yData, double **zData, int start, int step, int batchParticles)
 {
-    
+    int startParticle, endParticle;
+    startParticle = (batch * (batchParticles * wSize)) + 1;
+    endParticle = startParticle + batchParticles - 1;
+
+    FILE *fp;
+
+    char **fileNames = NULL;
+    fileNames = (char**) malloc(sizeof(char*) * batchParticles);
+    if(!fileNames)
+    {
+        fprintf(stderr, "[Error - %d] fileNames not allocated. \n", rank);
+        free(fileNames);
+        return;
+    }
+    for(int z = 0; z<batchParticles; z++)
+    {
+        fileNames[z] = NULL;
+        fileNames[z] = (char*) malloc(sizeof(char) * 4);
+        if(!fileNames[z])
+        {
+            fprintf(stderr, "[Error - %d] Internal fileNames not allocated. \n", rank);
+            for(int zz = z; zz>=0; zz--)
+                free(xData[zz]);
+
+            return;
+        }
+    }
+
+    char buffer[4];
+    for(int i = 0; i < batchParticles; i++)
+    {
+        snprintf(buffer, 4, "%03d", (startParticle+i));
+        strcpy(fileNames[i], buffer);
+    }
+
+    int timestep, rParticle, one, index;
+    double xVel, yVel, zVel;
+
+    for (int p = 0; p <= batchParticles; p++)
+    {
+        fp = fopen(fileNames[p], "r");
+        if (fp == NULL)
+        {
+            fprintf(stderr, "[Error - %d] File open error. \n", rank);
+            return;
+        }
+        char line[256];
+        while (fgets(line, sizeof line, fp) != NULL)
+        {
+            sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &rParticle, &one, &xVel, &yVel, &zVel);
+            index = (timestep - start) / step;
+
+            xData[p][index] = xVel;
+            yData[p][index] = yVel;
+            zData[p][index] = zVel;
+        }
+        fclose(fp);
+    }
+
+    for(int j = 0; j<batchParticles; j++)
+    {
+        free(fileNames[j]);
+    }
+    free(fileNames);
 }
 
 int main(int argc, char **argv)
@@ -142,10 +205,35 @@ int main(int argc, char **argv)
         }
     }
 
+    int count;
+    double accumalate, particle;
+
     for (int batch = 0; batch < batches; batch++)
     {
         // Read into 3 * arrays based on batch and rank
+        readData(batchParticles, M, batch, rank, wSize, xData, yData, zData, start, step, batchParticles);
         // Compute lCorr
+        for (int dt = 1; dt <= tmax; dt++)
+        {
+            count = 0;
+            accumalate = 0.0;
+            for (int t = 0; t < (M - dt); t++)
+            {
+                particle = 0.0;
+                // for (int i = 1; i < N; i++)
+                for (int i = 1; i <= batchParticles; i++)
+                {
+                    particle += xData[i][t] * xData[i][t + dt] +
+                                yData[i][t] * yData[i][t + dt] +
+                                zData[i][t] * zData[i][t + dt];
+                }
+                count++;
+                accumalate += particle;
+            }
+            accumalate /= ((N - 1) * count);
+            lCorr[dt] += accumalate;
+            // fprintf(stdout, "%d, %e\n", dt, accumalate);
+        }
     }
 
     for(int k = (M-1); k>=0; k--)
@@ -165,9 +253,8 @@ int main(int argc, char **argv)
 
     if (rank == 0)
     {
-        for (int k = 1; k <= tmax; k++)
-            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
-        
+        for (int l = 1; l <= tmax; l++)
+            fprintf(stdout, "%d, %e\n", l, gCorr[l]);  
     }
 
     MPI_Finalize();
