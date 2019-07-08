@@ -132,11 +132,6 @@ int main(int argc, char **argv)
         // padding(M);
         // readData(start, step, fileName);
 
-        if (tmax % wSize != 0)
-        {
-            tmax = tmax - (tmax % wSize);
-        }
-
     }
 
     float **xData = NULL;
@@ -293,6 +288,5 @@ int main(int argc, char **argv)
     // }
 
     MPI_Finalize();
-
     return 0;
 }
