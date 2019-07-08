@@ -258,7 +258,7 @@ int main(int argc, char **argv)
         // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
-    MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rank == 0)
     {

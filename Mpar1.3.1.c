@@ -52,6 +52,7 @@ void readData(int row, int col, int batch, int rank, int wSize, double **xData, 
             return;
         }
 
+
         int count = 0;
         int readLines = (stop - start) / step;
 
@@ -121,9 +122,8 @@ int main(int argc, char **argv)
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // Based on memory
-    int batchParticles = 5;
-    int batches = (N-1) / (wSize * batchParticles);
+    int batchParticles = 2;
+    int batches = (N-1) / (wSize * batchParticles);    
 
     double *lCorr = NULL;
     lCorr = (double*) malloc(sizeof(double) * (tmax + 1));
@@ -211,12 +211,14 @@ int main(int argc, char **argv)
 
     int count;
     double accumalate, particle;
-
+    
     for (int batch = 0; batch < batches; batch++)
     {
         // Read into 3 * arrays based on batch and rank
+
         readData(batchParticles, M, batch, rank, wSize, xData, yData, zData, start, stop, step, batchParticles);
         // Compute lCorr
+
         for (int dt = 1; dt <= tmax; dt++)
         {
             count = 0;
@@ -225,7 +227,7 @@ int main(int argc, char **argv)
             {
                 particle = 0.0;
                 // for (int i = 1; i < N; i++)
-                for (int i = 1; i <= batchParticles; i++)
+                for (int i = 0; i < batchParticles; i++)
                 {
                     particle += xData[i][t] * xData[i][t + dt] +
                                 yData[i][t] * yData[i][t + dt] +
@@ -238,28 +240,28 @@ int main(int argc, char **argv)
             lCorr[dt] += accumalate;
             // fprintf(stdout, "%d, %e\n", dt, accumalate);
         }
+        MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    // MPI_Barrier(MPI_COMM_WORLD);
-    // for(int k = (M-1); k>=0; k--)
-    // {
-    //     free(xData[k]);
-    //     free(yData[k]);
-    //     free(zData[k]);
-    // }
-
-    // free(xData);
-    // free(yData);
-    // free(zData);
-    // free(lCorr);
-    // free(gCorr);
 
     MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rank == 0)
     {
         for (int l = 1; l <= tmax; l++)
-            fprintf(stdout, "%d, %e\n", l, gCorr[l]);  
+            fprintf(stdout, "%d, %e\n", l, gCorr[l]);
+
+        // for(int k = (M-1); k>=0; k--)
+        // {
+        //     free(xData[k]);
+        //     free(yData[k]);
+        //     free(zData[k]);
+        // }
+
+        // free(xData);
+        // free(yData);
+        // free(zData);
+        // free(lCorr);
+        // free(gCorr);  
     }
 
     MPI_Finalize();

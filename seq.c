@@ -51,7 +51,7 @@ void padding(int n)
 
 void readData(int start, int step, char *fileName)
 {
-    int timestep, particle, index;
+    int timestep, particle, index, one;
     double xVel, yVel, zVel;
     FILE *fp;
 
@@ -62,7 +62,7 @@ void readData(int start, int step, char *fileName)
     char line[128];
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        sscanf(line, "%d %d %lf %lf %lf", &timestep, &particle, &xVel, &yVel, &zVel);
+        sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one,  &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
 
         xData[particle][index] = xVel;
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 
     int N, M;
     
-    char fileName[256];
+    char fileName[128];
     for (int c = 1; c < argc; c++)
     {
         if (!strcmp(argv[c], "-p"))
@@ -106,8 +106,6 @@ int main(int argc, char **argv)
 
     padding(M);
     readData(start, step, fileName);
-
-    fprintf(stdout, "timestep, vacf\n");
 
     double accumalate, particle;
     int count;

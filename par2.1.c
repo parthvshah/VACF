@@ -35,14 +35,10 @@ Date: 10-6-2019
 #include <string.h>
 #include <mpi.h>
 
-#define ROW 2064
-#define COL 5120
+#define ROW 501
+#define COL 20000001
 
-double xData[ROW][COL];
-double yData[ROW][COL];
-double zData[ROW][COL];
-
-void padding(int n)
+void padding(int n, float **xData, float **yData, float **zData)
 {
     for (int i = 0; i < n; i++)
     {
@@ -50,25 +46,32 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step, char *fileName)
+void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData)
 {
-    int timestep, particle, index;
-    double xVel, yVel, zVel;
+    int timestep, particle, one, index, count, maxCount;
+    float xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen(fileName, "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_l", "r");
     if (fp == NULL)
         return;
+    
+    count = 1;
+    maxCount = (stop-start) / step * N;
 
-    char line[128];
+    char line[256];
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        sscanf(line, "%d %d %lf %lf %lf", &timestep, &particle, &xVel, &yVel, &zVel);
+        if(count == maxCount)
+            return;
+        sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
 
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
+
+        count++;
     }
     fclose(fp);
 }
@@ -76,9 +79,7 @@ void readData(int start, int step, char *fileName)
 int main(int argc, char **argv)
 {
     int wRank, wSize, lChunk, NChunk, lRemainder, NRemainder, NStart, NEnd, lStart, lEnd;
-    double output[2];
     MPI_Status status;
-    MPI_File fp;
 
     MPI_Init(&argc, &argv);
 
@@ -114,7 +115,7 @@ int main(int argc, char **argv)
 
     if (wRank == 0)
     {
-        char fileName[256];
+        char fileName[128];
         for (int c = 1; c < argc; c++)
         {
             if (!strcmp(argv[c], "-p"))
@@ -137,23 +138,105 @@ int main(int argc, char **argv)
 
         tmax = (tmax == 0) ? (M / 3) : tmax;
 
-        padding(M);
-        readData(start, step, fileName);
+        // padding(M);
+        // readData(start, step, fileName);
     }
 
+    float **xData = NULL;
+    xData = (float**) malloc(sizeof(float*) * ROW);
+    if(!xData)
+    {
+        free(xData);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        xData[ii] = NULL;
+        xData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!xData[ii])
+        {
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
+            for(int jj = ii; jj>=0; jj--)
+                free(xData[jj]);
+            
+            return EXIT_FAILURE;
+        }
+    }
+
+    
+    float **yData = NULL;
+    yData = (float**) malloc(sizeof(float*) * ROW);
+    if(!yData)
+    {
+        free(yData);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        yData[ii] = NULL;
+        yData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!yData[ii])
+        {
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
+            for(int jj = ii; jj>=0; jj--)
+                free(yData[jj]);
+                
+            return EXIT_FAILURE;
+        }
+    }
+
+    
+    float **zData = NULL;
+    zData = (float**) malloc(sizeof(float*) * ROW);
+    if(!zData)
+    {
+        free(zData);
+        fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        zData[ii] = NULL;
+        zData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!zData[ii])
+        {
+            fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
+            for(int jj = ii; jj>=0; jj--)
+                free(zData[jj]);
+            
+            return EXIT_FAILURE;
+        }
+    }
+
+    MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&stop, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&step, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&xData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&yData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&zData, ROW * COL, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-    double *lCorr = (double *)malloc(sizeof(double) * (tmax + 1));
-    lCorr[0] = 0.0;
+    float *lCorr = NULL;
+    lCorr = (float *)malloc(sizeof(float) * (tmax + 1));
+    if(!lCorr)
+    {
+        free(lCorr);
+        fprintf(stdout, "[Error - %d] lCorr not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
 
-    double *gCorr = (double *)malloc(sizeof(double) * (tmax + 1));
-    gCorr[0] = 0.0;
+    float *gCorr = NULL;
+    gCorr = (float *)malloc(sizeof(float) * (tmax + 1));
+    if(!gCorr)
+    {
+        free(gCorr);
+        fprintf(stdout, "[Error - %d] gCorr not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
 
+    padding(M, xData, yData, zData);
+    readData(start, stop, step, N, xData, yData, zData);
     // Correlation calculation
     lChunk = tmax / (wSize / rSize);
     lRemainder = tmax - (lChunk * (wSize / rSize));
@@ -174,14 +257,6 @@ int main(int argc, char **argv)
     if ((NRemainder != 0) && (rRank == (rSize - 1)))
     {
         NEnd += NRemainder;
-    }
-
-    MPI_File_open(MPI_COMM_ROWROOT, "OUT", MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fp);
-
-    if(rRank == 0)
-    {
-        int viewLength = lChunk;
-        MPI_File_set_view(fp, (((wRank - (wRank % 12)) / 12) * sizeof(double) * 2 * viewLength), MPI_INT, MPI_INT, "native", MPI_INFO_NULL);
     }
 
     for (int dt = lStart; dt <= lEnd; dt++)
@@ -205,21 +280,16 @@ int main(int argc, char **argv)
         // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
-    MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_ROW);
+    MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_ROW);
     
     if (rRank == 0)
     {
         for (int k = lStart; k <= lEnd; k++)
         {
-            output[0] = (double)k;
-            output[1] = gCorr[k];
-            // fprintf(stdout, "%d, %e\n", k, gCorr[k]);
-            MPI_File_write_all(fp, &output, 2, MPI_DOUBLE, MPI_STATUS_IGNORE);
+            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
         }
     }
 
-    MPI_File_close(&fp);
     MPI_Finalize();
-    
     return 0;
 }
