@@ -33,10 +33,10 @@ void readData(int row, int col, int batch, int rank, int wSize, double **xData, 
         }
     }
 
-    char buffer[6];
+    char buffer[7];
     for(int i = 0; i < batchParticles; i++)
     {
-        snprintf(buffer, 6, "./%03d", (startParticle+i));
+        snprintf(buffer, 7, "./%04d", (startParticle+i));
         strcpy(fileNames[i], buffer);
     }
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int batchParticles = 2;
+    int batchParticles = 1;
     int batches = (N-1) / (wSize * batchParticles);    
 
     double *lCorr = NULL;
