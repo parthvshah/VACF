@@ -34,14 +34,10 @@ Date: 6-6-2019
 #include <stdlib.h>
 #include <string.h>
 
-#define ROW 2064
-#define COL 5120
+#define ROW 6913
+#define COL 10001
 
-double xData[ROW][COL];
-double yData[ROW][COL];
-double zData[ROW][COL];
-
-void padding(int n)
+void padding(int n, float **xData, float **yData, float **zData)
 {
     for (int i = 0; i < n; i++)
     {
@@ -49,25 +45,32 @@ void padding(int n)
     }
 }
 
-void readData(int start, int step, char *fileName)
+void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData)
 {
-    int timestep, particle, index, one;
-    double xVel, yVel, zVel;
+    int timestep, particle, one, index, count, maxCount;
+    float xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen(fileName, "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_6912_l", "r");
     if (fp == NULL)
         return;
+    
+    count = 1;
+    maxCount = (stop-start) / step * N;
 
-    char line[128];
+    char line[256];
     while (fgets(line, sizeof line, fp) != NULL)
     {
-        sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one,  &xVel, &yVel, &zVel);
+        if(count == maxCount)
+            return;
+        sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
 
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
+
+        count++;
     }
     fclose(fp);
 }
@@ -99,13 +102,81 @@ int main(int argc, char **argv)
         }
     }
 
+    float **xData = NULL;
+    xData = (float**) malloc(sizeof(float*) * ROW);
+    if(!xData)
+    {
+        free(xData);
+        fprintf(stdout, "[Error] xData not allocated.\n");
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        xData[ii] = NULL;
+        xData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!xData[ii])
+        {
+            fprintf(stdout, "[Error] Internal xData not allocated. \n");
+            for(int jj = ii; jj>=0; jj--)
+                free(xData[jj]);
+            
+            return EXIT_FAILURE;
+        }
+    }
+
+    
+    float **yData = NULL;
+    yData = (float**) malloc(sizeof(float*) * ROW);
+    if(!yData)
+    {
+        free(yData);
+        fprintf(stdout, "[Error] xData not allocated.\n");
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        yData[ii] = NULL;
+        yData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!yData[ii])
+        {
+            fprintf(stdout, "[Error] Internal xData not allocated. \n");
+            for(int jj = ii; jj>=0; jj--)
+                free(yData[jj]);
+                
+            return EXIT_FAILURE;
+        }
+    }
+
+    
+    float **zData = NULL;
+    zData = (float**) malloc(sizeof(float*) * ROW);
+    if(!zData)
+    {
+        free(zData);
+        fprintf(stdout, "[Error] xData not allocated.\n");
+        return EXIT_FAILURE;
+    }
+    for (int ii = 0; ii<ROW; ii++)
+    {
+        zData[ii] = NULL;
+        zData[ii] = (float*) malloc(sizeof(float) * COL);
+        if(!zData[ii])
+        {
+            fprintf(stdout, "[Error] Internal xData not allocated. \n");
+            for(int jj = ii; jj>=0; jj--)
+                free(zData[jj]);
+            
+            return EXIT_FAILURE;
+        }
+    }
+
     N++;                             // Number of particles
     M = ((stop - start) / step) + 1; // Number of timesteps
 
     tmax = (tmax == 0) ? (M / 3) : tmax;
 
-    padding(M);
-    readData(start, step, fileName);
+    padding(M, xData, yData, zData);
+    readData(start, stop, step, N, xData, yData, zData);    
 
     double accumalate, particle;
     int count;
