@@ -3,8 +3,48 @@
 #include <string.h>
 #include <mpi.h>
 
-void readData(int batch, int rank, int N, int batchTimesteps, int tmax, double **xData, double **yData, double **zData)
+void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tmax, double **xData, double **yData, double **zData, int start, int stop, int step)
 {
+    int startTimestep, endTimestep;
+    startTimestep = start + (batch * wSize * step) + (rank * step);
+    endTimestep = startTimestep + ((batchTimesteps + tmax - 1) * step);
+
+    int skipLines, readLines;
+    skipLines = (startTimestep - start) / step * (N-1);
+    readLines = (batchTimesteps + tmax) * (N-1);
+
+    int timestep, particle, one, index, count, maxCount;
+    double xVel, yVel, zVel;
+    FILE *fp;
+
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_25", "r");
+    if (fp == NULL)
+        return;
+    
+    count = 0;
+    char line[256];
+    while (fgets(line, sizeof line, fp) != NULL)
+    {
+        if(count == skipLines)
+            break;
+        count++;
+    }
+
+    count = 0;
+    while (fgets(line, sizeof line, fp) != NULL)
+    {
+        if(count == readLines)
+            break;
+        sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one, &xVel, &yVel, &zVel);
+        index = ;
+
+        xData[particle][index] = xVel;
+        yData[particle][index] = yVel;
+        zData[particle][index] = zVel;
+
+        count++;
+    }
+    fclose(fp);
 
 } 
 
@@ -19,7 +59,7 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
 
     int start, stop, step, N, M, tmax;
-   
+    int batchTimesteps = 1;    
 
     if (rank == 0)
     {
@@ -32,8 +72,8 @@ int main(int argc, char **argv)
                 N = atoi(argv[++c]);
             else if (!strcmp(argv[c], "-i"))
                 tmax = atoi(argv[++c]);
-            else if (!strcmp(argv[c], "-f"))
-                sscanf(argv[++c], "%s", fileName);
+            else if (!strcmp(argv[c], "-bt"))
+                batchTimesteps = atoi(argv[++c]);
             else
             {
                 fprintf(stderr, "[Error] Command-line argument not recognized. \n");
@@ -54,7 +94,7 @@ int main(int argc, char **argv)
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int batchTimesteps= 1000;
+    // int batchTimesteps = 1;
     int batches = (M-1) / (wSize * batchTimesteps);
 
     double *lCorr = NULL;
@@ -86,7 +126,7 @@ int main(int argc, char **argv)
     for (int ii = 0; ii<N; ii++)
     {
         xData[ii] = NULL;
-        xData[ii] = (double*) malloc(sizeof(double) * M);
+        xData[ii] = (double*) malloc(sizeof(double) * (batchTimesteps+tmax));
         if(!xData[ii])
         {
             fprintf(stderr, "[Error - %d] Internal xData not allocated. \n", rank);
@@ -108,7 +148,7 @@ int main(int argc, char **argv)
     for (int ii = 0; ii<N; ii++)
     {
         yData[ii] = NULL;
-        yData[ii] = (double*) malloc(sizeof(double) * M);
+        yData[ii] = (double*) malloc(sizeof(double) * (batchTimesteps+tmax));
         if(!yData[ii])
         {
             fprintf(stderr, "[Error - %d] Internal yData not allocated. \n", rank);
@@ -130,7 +170,7 @@ int main(int argc, char **argv)
     for (int ii = 0; ii<N; ii++)
     {
         zData[ii] = NULL;
-        zData[ii] = (double*) malloc(sizeof(double) * M);
+        zData[ii] = (double*) malloc(sizeof(double) * (batchTimesteps+tmax));
         if(!zData[ii])
         {
             fprintf(stderr, "[Error - %d] Internal zData not allocated. \n", rank);
@@ -147,8 +187,7 @@ int main(int argc, char **argv)
     for (int batch = 0; batch < batches; batch++)
     {
         // Read into 3 * arrays based on batch and rank
-
-        readData(batch, rank, batchTimesteps, tmax, xData, yData, zData);
+        readData(batch, rank, wSize, N, batchTimesteps, tmax, xData, yData, zData, start, stop, step);
 
         // Compute lCorr
 
