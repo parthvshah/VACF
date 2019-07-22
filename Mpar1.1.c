@@ -6,7 +6,7 @@
 void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tmax, double **xData, double **yData, double **zData, int start, int stop, int step)
 {
     int startTimestep, endTimestep;
-    startTimestep = start + (batch * wSize * step) + (rank * step);
+    startTimestep = start + (batch * wSize * step) + (batchTimesteps * rank * step);
     endTimestep = startTimestep + ((batchTimesteps + tmax - 1) * step);
 
     int skipLines, readLines;
@@ -16,6 +16,8 @@ void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tma
     int timestep, particle, one, index, count, maxCount;
     double xVel, yVel, zVel;
     FILE *fp;
+    // printf("%d)%d) %d %d\n", batch, rank, startTimestep, endTimestep);
+
 
     fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_25", "r");
     if (fp == NULL)
@@ -23,10 +25,9 @@ void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tma
     
     count = 0;
     char line[256];
-    while (fgets(line, sizeof line, fp) != NULL)
+    while (count != skipLines)
     {
-        if(count == skipLines)
-            break;
+        fgets(line, sizeof line, fp);
         count++;
     }
 
@@ -36,8 +37,7 @@ void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tma
         if(count == readLines)
             break;
         sscanf(line, "%d %d %d %lf %lf %lf", &timestep, &particle, &one, &xVel, &yVel, &zVel);
-        index = ;
-
+        index = (timestep - startTimestep) / step;
         xData[particle][index] = xVel;
         yData[particle][index] = yVel;
         zData[particle][index] = zVel;
@@ -87,6 +87,7 @@ int main(int argc, char **argv)
         tmax = (tmax == 0) ? (M / 3) : tmax;
     }
 
+    MPI_Bcast(&batchTimesteps, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&stop, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&step, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -96,6 +97,11 @@ int main(int argc, char **argv)
 
     // int batchTimesteps = 1;
     int batches = (M-1) / (wSize * batchTimesteps);
+    if(batches == 0 && rank == 0)
+    {
+        fprintf(stderr, "[Error] Incorrect number of batches. \n");
+        return 1;
+    }
 
     double *lCorr = NULL;
     lCorr = (double*) malloc(sizeof(double) * (tmax + 1));
@@ -181,16 +187,18 @@ int main(int argc, char **argv)
         }
     }
 
-    int count;
+    int count, skipTimes = -1;
     double accumalate, particle;
+
     
     for (int batch = 0; batch < batches; batch++)
     {
         // Read into 3 * arrays based on batch and rank
         readData(batch, rank, wSize, N, batchTimesteps, tmax, xData, yData, zData, start, stop, step);
-
+    
+        if(rank != 0)
+            skipTimes = tmax - 1;
         // Compute lCorr
-
         for (int dt = 1; dt <= tmax; dt++)
         {
             count = 0;
@@ -204,11 +212,17 @@ int main(int argc, char **argv)
                                 yData[i][t] * yData[i][t + dt] +
                                 zData[i][t] * zData[i][t + dt];
                 }
+                if(count >= skipTimes)
+                {
+                    accumalate += particle;
+                }
+                
                 count++;
-                accumalate += particle;
+                
             }
-            accumalate /= ((N - 1) * count);
+            // accumalate /= ((N - 1) * count);
             lCorr[dt] += accumalate;
+            skipTimes--;
             // fprintf(stdout, "%d, %e\n", dt, accumalate);
         }
         MPI_Barrier(MPI_COMM_WORLD);
@@ -219,7 +233,9 @@ int main(int argc, char **argv)
     if (rank == 0)
     {
         for (int l = 1; l <= tmax; l++)
-            fprintf(stdout, "%d, %e\n", l, gCorr[l]);
+        {
+            fprintf(stdout, "%d, %e\n", l, gCorr[l] / ((N-1) * (M-l)));
+        }
 
         // for(int k = (M-1); k>=0; k--)
         // {
