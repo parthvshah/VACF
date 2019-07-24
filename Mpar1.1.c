@@ -6,7 +6,7 @@
 void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tmax, double **xData, double **yData, double **zData, int start, int stop, int step)
 {
     int startTimestep, endTimestep;
-    startTimestep = start + (batch * wSize * step) + (batchTimesteps * rank * step);
+    startTimestep = start + (batch * batchTimesteps * wSize * step) + (batchTimesteps * rank * step);
     endTimestep = startTimestep + ((batchTimesteps + tmax - 1) * step);
 
     int skipLines, readLines;
@@ -16,10 +16,8 @@ void readData(int batch, int rank, int wSize, int N, int batchTimesteps, int tma
     int timestep, particle, one, index, count, maxCount;
     double xVel, yVel, zVel;
     FILE *fp;
-    // printf("%d)%d) %d %d\n", batch, rank, startTimestep, endTimestep);
 
-
-    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_25", "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_6912_l", "r");
     if (fp == NULL)
         return;
     
@@ -97,9 +95,9 @@ int main(int argc, char **argv)
 
     // int batchTimesteps = 1;
     int batches = (M-1) / (wSize * batchTimesteps);
-    if(batches == 0 && rank == 0)
+    if((batches == 0 && rank == 0) || (tmax>=batchTimesteps && rank == 0))
     {
-        fprintf(stderr, "[Error] Incorrect number of batches. \n");
+        fprintf(stderr, "[Error] Incorrect number of batches/batchParticles. \n");
         return 1;
     }
 
