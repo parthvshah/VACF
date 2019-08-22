@@ -25,12 +25,12 @@ for x in range(len(vacf)):
     timestep[x] /= 100
 
 if(lower==0 and upper==0):
-    plt.plot(timestep, vacf, color="black")
+    plt.plot(timestep, vacf)
 else:
-    plt.plot(timestep[lower:upper], vacf[lower:upper], color="black")
+    plt.plot(timestep[lower:upper], vacf[lower:upper])
 
-plt.axhline(y=0, color="blue")
-plt.title("VACF for atoms of Argon (liq)")
-plt.xlabel("Time in 1e-12s")
-plt.ylabel("Velocity auto-correlation")
+plt.axhline(y=0, color="black")
+plt.title("Liquid Argon System")
+plt.xlabel("Time 1E-12 (s)")
+plt.ylabel("Velocity Auto-Correlation")
 plt.savefig('vacf.png')
