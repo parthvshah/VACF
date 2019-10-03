@@ -211,7 +211,7 @@ int main(int argc, char **argv)
         }
     }
 
-    int count;
+    unsigned long int count;
     double accumalate, particle;
     
     for (int batch = 0; batch < batches; batch++)
