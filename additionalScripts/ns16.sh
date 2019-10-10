@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -S /bin/bash
-#PBS -l nodes=5:ppn=24:cpu24a
+#PBS -l nodes=3:ppn=24:cpu24a
 #PBS -l walltime=02:00:00
 #PBS -j oe
 #PBS -e js_err.$PBS_JOBID
@@ -33,7 +33,7 @@ source /apps/Intel/bin/compilervars.sh intel64
 source /apps/Intel/impi/5.0.3.049/intel64/bin/mpivars.sh 
 
 EXE="/sscu_gpfs/archive/suvo92/VACF/vacf.par2.1"
-INPUT="-p 50000,550000,10 -a 500 -i 1000"
+INPUT="-p 50000,2050000,10 -a 500 -i 1000"
 OUTPUT="stdout.$PBS_JOBID"
 
 export I_MPI_PIN_PROCESSOR_LIST=0-23

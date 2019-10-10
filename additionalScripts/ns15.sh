@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -S /bin/bash
-#PBS -l nodes=15:ppn=24:cpu24a
+#PBS -l nodes=2:ppn=24:cpu24a
 #PBS -l walltime=02:00:00
 #PBS -j oe
 #PBS -e js_err.$PBS_JOBID

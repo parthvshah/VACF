@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -S /bin/bash
-#PBS -l nodes=20:ppn=24:cpu24a
-#PBS -l walltime=02:00:00
+#PBS -l nodes=3:ppn=24:cpu24a
+#PBS -l walltime=04:00:00
 #PBS -j oe
 #PBS -e js_err.$PBS_JOBID
 #PBS -o js_msgs.$PBS_JOBID
@@ -28,13 +28,13 @@ echo `cat mpd_nodefile_$USER`
 
 PPN=$(( $NPROCS / $NO_OF_COMPUTE_NODES ))
 ulimit -c unlimited
-ulimit -n 70000
+ulimit -n 7000
 
 source /apps/Intel/bin/compilervars.sh intel64
 source /apps/Intel/impi/5.0.3.049/intel64/bin/mpivars.sh 
 
 EXE="/sscu_gpfs/archive/suvo92/VACF/HISTORY_atoms/bits/vacf.Mpar1.3.1"
-INPUT="-p 50000,9857960,10 -a 6912 -i 1000 -bp 144"
+INPUT="-p 50000,9857960,10 -a 6912 -i 1000 -bp 12"
 OUTPUT="stdout.$PBS_JOBID"
 
 export I_MPI_PIN_PROCESSOR_LIST=0-23
