@@ -45,13 +45,13 @@ void padding(int n, float **xData, float **yData, float **zData)
     }
 }
 
-void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData)
+void readData(int start, int stop, int step, int N, float **xData, float **yData, float** zData, char *fileName)
 {
     int timestep, particle, one, index, count, maxCount;
     float xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_6912_l", "r");
+    fp = fopen(fileName, "r");
     if (fp == NULL)
         return;
     
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
     tmax = (tmax == 0) ? (M / 3) : tmax;
 
     padding(M, xData, yData, zData);
-    readData(start, stop, step, N, xData, yData, zData);    
+    readData(start, stop, step, N, xData, yData, zData, fileName);    
 
     double accumalate, particle;
     int count;
