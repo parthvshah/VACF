@@ -333,7 +333,7 @@ int main(int argc, char **argv)
     {
         for (int k = 0; k < 5; k++)
         {
-            fprintf(stdout, "%d. %e\n", k+1, gTime[k]/wSize);
+            fprintf(stdout, "%d. %lf\n", k+1, gTime[k]/wSize);
         }
     }
     
