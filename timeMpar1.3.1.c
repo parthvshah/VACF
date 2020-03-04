@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     if(!lTime)
     {
         free(lTime);
-        fprintf(stdout, "[Error - %d] lTime not allocated.\n", wRank);
+        fprintf(stdout, "[Error - %d] lTime not allocated.\n", rank);
         return EXIT_FAILURE;
     }
 
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
     if(!gTime)
     {
         free(gTime);
-        fprintf(stdout, "[Error - %d] gTime not allocated.\n", wRank);
+        fprintf(stdout, "[Error - %d] gTime not allocated.\n", rank);
         return EXIT_FAILURE;
     }
 
