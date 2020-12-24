@@ -9,6 +9,7 @@ Serial and parallel implementation of Velocity Auto-Correlation Function
 - ```par1.3.c``` - Particle decomposition, barrier implementation
 - ```par1.c``` - Correlation decomposition (Algorithm 1)
 - ```par2.1.c``` - Double decomposition, batch processing (Algorithm 3)
+- ```par2.2.c``` - Double decomposition, batch processing and batching of stored timesteps (Algorithm 3.1)
 - ```par2.c``` - Double decomposition, sub-root processes
 - ```parOpenMP.c``` - OpenMP implementation, correlation decomposition
 - ```seq.c``` - Sequential implementation 
