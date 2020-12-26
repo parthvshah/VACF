@@ -50,12 +50,21 @@ int readData(int wRank, int batch, int corr, int N, int start, int stop, int ste
     return index;
 }
 
+double clockTime(double startT)
+{
+    double endT;
+    endT = MPI_Wtime() - startT;
+    return endT;
+}
+
 int main(int argc, char **argv)
 {
     int wRank, wSize, lChunk, NChunk, lRemainder, NRemainder, NStart, NEnd, lStart, lEnd;
     MPI_Status status;
 
     MPI_Init(&argc, &argv);
+
+    double mpi_setup = MPI_Wtime();
 
     MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
     MPI_Comm_size(MPI_COMM_WORLD, &wSize);
@@ -77,6 +86,26 @@ int main(int argc, char **argv)
     MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
     MPI_Group_incl(MPI_GROUP_WORLD, (wSize / 12), ranks, &MPI_GROUP_ROWROOT);
     MPI_Comm_create(MPI_COMM_WORLD, MPI_GROUP_ROWROOT, &MPI_COMM_ROWROOT);
+
+    double *lTime = NULL;
+    lTime = (double *)malloc(sizeof(double) * 5);
+    if(!lTime)
+    {
+        free(lTime);
+        fprintf(stdout, "[Error - %d] lTime not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
+
+    double *gTime = NULL;
+    gTime = (double *)malloc(sizeof(double) * 5);
+    if(!gTime)
+    {
+        free(gTime);
+        fprintf(stdout, "[Error - %d] gTime not allocated.\n", wRank);
+        return EXIT_FAILURE;
+    }
+
+    lTime[0] = clockTime(mpi_setup);
 
     int start;
     int stop;
@@ -121,6 +150,8 @@ int main(int argc, char **argv)
         // readData(start, step, fileName);
     }
 
+    double bcast = MPI_Wtime();
+
     MPI_Bcast(&batches, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&batchTimesteps, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&start, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -129,6 +160,10 @@ int main(int argc, char **argv)
     MPI_Bcast(&M, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&tmax, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    lTime[2] = clockTime(bcast);
+
+    double mem_alloc = MPI_Wtime();
 
     float **xData = NULL;
     xData = (float**) malloc(sizeof(float*) * N);
@@ -214,6 +249,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    lTime[1] = clockTime(mem_alloc);
+
     // Correlation calculation
     lChunk = tmax / (wSize / rSize);
     lRemainder = tmax - (lChunk * (wSize / rSize));
@@ -237,14 +274,18 @@ int main(int argc, char **argv)
     }
 
     int timestepsRead;
-
+    
     for (int dt = lStart; dt <= lEnd; dt++)
     {
         count = 0;
         accumalate = 0.0;
+
         for (int batch = 0; batch < batches; batch++)
         {
+            double read_d = MPI_Wtime();
             timestepsRead = readData(wRank, batch, tmax, N, start, stop, step, xData, yData, zData, batchTimesteps);
+            lTime[3] = batches * clockTime(read_d);
+
             if(timestepsRead == 0)
             {
                 fprintf(stdout, "[Error - %d] No timesteps read.\n", wRank);
@@ -271,14 +312,27 @@ int main(int argc, char **argv)
         lCorr[dt] = accumalate;
         // fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
+    double collect = MPI_Wtime();
 
     MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_ROW);
     
+    lTime[4] = clockTime(collect);
+
+    MPI_Reduce(lTime, gTime, 5, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
     if (rRank == 0)
     {
         for (int k = lStart; k <= lEnd; k++)
         {
             fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+        }
+    }
+
+    if (wRank == 0)
+    {
+        for (int k = 0; k < 5; k++)
+        {
+            fprintf(stdout, "%d. %lf\n", k+1, gTime[k]/wSize);
         }
     }
 
