@@ -36,7 +36,7 @@ Date: 10-6-2019
 #include <mpi.h>
 
 #define ROW 501
-#define COL 20000001
+#define COL 2000001
 
 void padding(int n, float **xData, float **yData, float **zData)
 {
@@ -300,26 +300,26 @@ int main(int argc, char **argv)
         NEnd += NRemainder;
     }
 
-    // for (int dt = lStart; dt <= lEnd; dt++)
-    // {
-    //     count = 0;
-    //     accumalate = 0.0;
-    //     for (int t = 0; t < (M - dt); t++)
-    //     {
-    //         particle = 0.0;
-    //         for (int i = NStart; i <= NEnd; i++)
-    //         {
-    //             particle += xData[i][t] * xData[i][t + dt] +
-    //                         yData[i][t] * yData[i][t + dt] +
-    //                         zData[i][t] * zData[i][t + dt];
-    //         }
-    //         count++;
-    //         accumalate += particle;
-    //     }
-    //     accumalate /= ((N - 1) * count);
-    //     lCorr[dt] = accumalate;
-    //     // fprintf(stdout, "%d, %e\n", dt, accumalate);
-    // }
+    for (int dt = lStart; dt <= lEnd; dt++)
+    {
+        count = 0;
+        accumalate = 0.0;
+        for (int t = 0; t < (M - dt); t++)
+        {
+            particle = 0.0;
+            for (int i = NStart; i <= NEnd; i++)
+            {
+                particle += xData[i][t] * xData[i][t + dt] +
+                            yData[i][t] * yData[i][t + dt] +
+                            zData[i][t] * zData[i][t + dt];
+            }
+            count++;
+            accumalate += particle;
+        }
+        accumalate /= ((N - 1) * count);
+        lCorr[dt] = accumalate;
+        // fprintf(stdout, "%d, %e\n", dt, accumalate);
+    }
 
     double collect = MPI_Wtime();
 
@@ -337,13 +337,13 @@ int main(int argc, char **argv)
         }
     }
     
-    // if (rRank == 0)
-    // {
-    //     for (int k = lStart; k <= lEnd; k++)
-    //     {
-    //         fprintf(stdout, "%d, %e\n", k, gCorr[k]);
-    //     }
-    // }
+    if (rRank == 0)
+    {
+        for (int k = lStart; k <= lEnd; k++)
+        {
+            fprintf(stdout, "%d, %e\n", k, gCorr[k]);
+        }
+    }
 
     MPI_Finalize();
     return 0;

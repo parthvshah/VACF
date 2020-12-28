@@ -52,7 +52,7 @@ void readData(int start, int stop, int step, int N, float **xData, float **yData
     float xVel, yVel, zVel;
     FILE *fp;
 
-    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_l", "r");
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_s", "r");
     if (fp == NULL)
         return;
     

@@ -10,33 +10,33 @@ int readData(int wRank, int batch, int corr, int N, int start, int stop, int ste
     FILE *fp;
     char line[256];
 
-    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_s", "r");
-    if(fp == NULL)
+    fp = fopen("./HISTORY_atoms/HISTORY_CLEAN_500_l", "r");
+    if (fp == NULL)
         return 0;
-    
-    count = 1;
-    skip = batch * batchTimesteps * (N-1);
 
-    if(skip != 0)
+    count = 1;
+    skip = batch * batchTimesteps * (N - 1);
+
+    if (skip != 0)
     {
-        while(fgets(line, sizeof line, fp) != NULL)
+        while (fgets(line, sizeof line, fp) != NULL)
         {
-            if(count == skip)
+            if (count == skip)
                 break;
             count++;
         }
     }
 
     count = 1;
-    maxCount = (batchTimesteps + corr) * (N-1);
+    maxCount = (batchTimesteps + corr) * (N - 1);
 
-    while(fgets(line, sizeof line, fp) != NULL)
+    while (fgets(line, sizeof line, fp) != NULL)
     {
-        if(count == maxCount)
+        if (count == maxCount)
             break;
         sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
 
-        if(count == 1)
+        if (count == 1)
             firstTimestep = timestep;
 
         index = (timestep - firstTimestep) / step;
@@ -64,6 +64,7 @@ int main(int argc, char **argv)
 
     MPI_Init(&argc, &argv);
 
+    double total = MPI_Wtime();
     double mpi_setup = MPI_Wtime();
 
     MPI_Comm_rank(MPI_COMM_WORLD, &wRank);
@@ -77,10 +78,10 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_ROW, &rRank);
     MPI_Comm_size(MPI_COMM_ROW, &rSize);
 
-    int *ranks = (int *)malloc(sizeof(int)*wSize/12);
+    int *ranks = (int *)malloc(sizeof(int) * wSize / 12);
     int iCount = 0;
-    for(int iRank = 0; iRank<wSize; iRank++)
-        if(iRank%12==0)
+    for (int iRank = 0; iRank < wSize; iRank++)
+        if (iRank % 12 == 0)
             ranks[iCount++] = iRank;
     MPI_Group MPI_GROUP_WORLD, MPI_GROUP_ROWROOT;
     MPI_Comm_group(MPI_COMM_WORLD, &MPI_GROUP_WORLD);
@@ -88,8 +89,8 @@ int main(int argc, char **argv)
     MPI_Comm_create(MPI_COMM_WORLD, MPI_GROUP_ROWROOT, &MPI_COMM_ROWROOT);
 
     double *lTime = NULL;
-    lTime = (double *)malloc(sizeof(double) * 5);
-    if(!lTime)
+    lTime = (double *)malloc(sizeof(double) * 6);
+    if (!lTime)
     {
         free(lTime);
         fprintf(stdout, "[Error - %d] lTime not allocated.\n", wRank);
@@ -97,8 +98,8 @@ int main(int argc, char **argv)
     }
 
     double *gTime = NULL;
-    gTime = (double *)malloc(sizeof(double) * 5);
-    if(!gTime)
+    gTime = (double *)malloc(sizeof(double) * 6);
+    if (!gTime)
     {
         free(gTime);
         fprintf(stdout, "[Error - %d] gTime not allocated.\n", wRank);
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
 
     int start;
     int stop;
-    int step; 
+    int step;
     int N, M;
     int batchTimesteps, batches;
     int tmax = 0;
@@ -166,74 +167,74 @@ int main(int argc, char **argv)
     double mem_alloc = MPI_Wtime();
 
     float **xData = NULL;
-    xData = (float**) malloc(sizeof(float*) * N);
-    if(!xData)
+    xData = (float **)malloc(sizeof(float *) * N);
+    if (!xData)
     {
         free(xData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<N; ii++)
+    for (int ii = 0; ii < N; ii++)
     {
         xData[ii] = NULL;
-        xData[ii] = (float*) malloc(sizeof(float) * (batchTimesteps+tmax+1));
-        if(!xData[ii])
+        xData[ii] = (float *)malloc(sizeof(float) * (batchTimesteps + tmax + 1));
+        if (!xData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
-            for(int jj = ii; jj>=0; jj--)
+            for (int jj = ii; jj >= 0; jj--)
                 free(xData[jj]);
-            
+
             return EXIT_FAILURE;
         }
     }
 
     float **yData = NULL;
-    yData = (float**) malloc(sizeof(float*) * N);
-    if(!yData)
+    yData = (float **)malloc(sizeof(float *) * N);
+    if (!yData)
     {
         free(yData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<N; ii++)
+    for (int ii = 0; ii < N; ii++)
     {
         yData[ii] = NULL;
-        yData[ii] = (float*) malloc(sizeof(float) * (batchTimesteps+tmax+1));
-        if(!yData[ii])
+        yData[ii] = (float *)malloc(sizeof(float) * (batchTimesteps + tmax + 1));
+        if (!yData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
-            for(int jj = ii; jj>=0; jj--)
+            for (int jj = ii; jj >= 0; jj--)
                 free(yData[jj]);
-                
+
             return EXIT_FAILURE;
         }
     }
-    
+
     float **zData = NULL;
-    zData = (float**) malloc(sizeof(float*) * N);
-    if(!zData)
+    zData = (float **)malloc(sizeof(float *) * N);
+    if (!zData)
     {
         free(zData);
         fprintf(stdout, "[Error - %d] xData not allocated.\n", wRank);
         return EXIT_FAILURE;
     }
-    for (int ii = 0; ii<N; ii++)
+    for (int ii = 0; ii < N; ii++)
     {
         zData[ii] = NULL;
-        zData[ii] = (float*) malloc(sizeof(float) * (batchTimesteps+tmax+1));
-        if(!zData[ii])
+        zData[ii] = (float *)malloc(sizeof(float) * (batchTimesteps + tmax + 1));
+        if (!zData[ii])
         {
             fprintf(stdout, "[Error - %d] Internal xData not allocated. \n", wRank);
-            for(int jj = ii; jj>=0; jj--)
+            for (int jj = ii; jj >= 0; jj--)
                 free(zData[jj]);
-            
+
             return EXIT_FAILURE;
         }
     }
 
     float *lCorr = NULL;
     lCorr = (float *)malloc(sizeof(float) * (tmax + 1));
-    if(!lCorr)
+    if (!lCorr)
     {
         free(lCorr);
         fprintf(stdout, "[Error - %d] lCorr not allocated.\n", wRank);
@@ -242,7 +243,7 @@ int main(int argc, char **argv)
 
     float *gCorr = NULL;
     gCorr = (float *)malloc(sizeof(float) * (tmax + 1));
-    if(!gCorr)
+    if (!gCorr)
     {
         free(gCorr);
         fprintf(stdout, "[Error - %d] gCorr not allocated.\n", wRank);
@@ -274,26 +275,27 @@ int main(int argc, char **argv)
     }
 
     int timestepsRead;
-    
-    for (int dt = lStart; dt <= lEnd; dt++)
+    for (int batch = 0; batch < batches; batch++)
     {
-        count = 0;
-        accumalate = 0.0;
+        double read_d = MPI_Wtime();
+        if(batch == 0)
+            lTime[3] = 0.0;
+        timestepsRead = readData(wRank, batch, tmax, N, start, stop, step, xData, yData, zData, batchTimesteps);
+        lTime[3] += clockTime(read_d);
 
-        for (int batch = 0; batch < batches; batch++)
+        if (timestepsRead == 0)
         {
-            double read_d = MPI_Wtime();
-            timestepsRead = readData(wRank, batch, tmax, N, start, stop, step, xData, yData, zData, batchTimesteps);
-            lTime[3] = batches * clockTime(read_d);
+            fprintf(stdout, "[Error - %d] No timesteps read.\n", wRank);
+            return EXIT_FAILURE;
+        }
 
-            if(timestepsRead == 0)
-            {
-                fprintf(stdout, "[Error - %d] No timesteps read.\n", wRank);
-                return EXIT_FAILURE;
-            }
+        for (int dt = lStart; dt <= lEnd; dt++)
+        {
+            count = 0;
+            accumalate = 0.0;
 
             // for (int t = 0; t < (M - dt); t++)
-            for (int t = 0; t <= (timestepsRead - dt); t++)
+            for (int t = 0; t < (timestepsRead - dt); t++)
             {
                 particle = 0.0;
                 for (int i = NStart; i <= NEnd; i++)
@@ -306,17 +308,19 @@ int main(int argc, char **argv)
                 accumalate += particle;
             }
             // MPI_Barrier(MPI_COMM_WORLD);
-        }
 
-        accumalate /= ((N - 1) * count);
-        lCorr[dt] = accumalate;
-        // fprintf(stdout, "%d, %e\n", dt, accumalate);
+            accumalate /= ((N - 1) * count);
+            lCorr[dt] = accumalate;
+            // fprintf(stdout, "%d, %e\n", dt, accumalate);
+        }
     }
+
     double collect = MPI_Wtime();
 
     MPI_Reduce(lCorr, gCorr, tmax + 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_ROW);
-    
+
     lTime[4] = clockTime(collect);
+    lTime[5] = clockTime(total);
 
     MPI_Reduce(lTime, gTime, 5, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
@@ -330,9 +334,9 @@ int main(int argc, char **argv)
 
     if (wRank == 0)
     {
-        for (int k = 0; k < 5; k++)
+        for (int k = 0; k < 6; k++)
         {
-            fprintf(stdout, "%d. %lf\n", k+1, gTime[k]/wSize);
+            fprintf(stdout, "%d. %lf\n", k + 1, gTime[k] / wSize);
         }
     }
 
