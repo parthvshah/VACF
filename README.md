@@ -1,16 +1,84 @@
-# VACF
-Serial and parallel implementation of Velocity Auto-Correlation Function
+# Velocity Auto-Correlation Function (VACF)
 
-## Naming
-- ```Mpar1.1.c``` - [Massively Parallel] Timestep decomposition (Algorithm 1.1)
-- ```Mpar1.3.1.c``` - Double decomposition (Algorithm 2.1)
-- ```par1.1.c``` - Correlation decomposition, load balancing
-- ```par1.3.1.c``` - Particle decomposition, lesser communication (Algorithm 2)
-- ```par1.3.c``` - Particle decomposition, barrier implementation
-- ```par1.c``` - Correlation decomposition (Algorithm 1)
-- ```par2.1.c``` - Double decomposition, batch processing (Algorithm 3)
-- ```par2.2.c``` - Double decomposition, batch processing and batching of stored timesteps (Algorithm 3.1)
-- ```par2.c``` - Double decomposition, sub-root processes
-- ```parOpenMP.c``` - OpenMP implementation, correlation decomposition
-- ```seq.c``` - Sequential implementation 
-- ```seq1.c``` - Sequential with Redis read optimization
+Serial and parallel implementation of Velocity Auto-Correlation Function in C with MPICH for the paper titled _"Calculation of the Velocity Auto-Correlation Function Using Parallel Algorithms"_ by Parth Vipul Shah, Shubhadeep Nag, Debnath Pal, Subramanian Yashonath. Submitted for review.
+
+## Introduction
+
+Abstract: WIP
+
+This repository contains all the resources for the reproduction of our results which are detailed in our paper. The data required can be generated using [LAMMPS](https://www.lammps.org/).
+
+## Setup
+
+To run these algorithms on a cluster, you will need [MPICH](https://www.mpich.org/), an implementation of the Message Passing Ineterface (MPI). To generate data, you will need LAMMPS.
+
+#### MPICH
+
+MPICH can be installed from [here](https://www.mpich.org/downloads/) or from a package manager like apt. Documentation is available [here](https://www.mpich.org/documentation/guides/). Once installed, run `hello_world.c` to verify installation.
+
+Compile and run with:
+
+```
+mpicc -o test hello_world.c -std=c99
+
+mpiexec.hydra -n 4 ./test
+```
+
+More information can be found on the official MPICH documentaion.
+
+`new_script.sh` is a sample script provided for your reference. We used this to submit jobs to our PBS queue running on a 120 node cluster with Intel Xeon E5-2670 (Haswell) CPUs.
+
+#### LAMMPS
+
+LAMMPS can be downloaded from here. Unpack the same and run. Manual is available here.
+
+## Usage
+
+All programs take 3 arguments. The massively parallel implementations take one addition parameter.
+
+```
+Flags
+---------------------------
+-p int,int,int details the start,stop, step timesteps
+-a int details the number of particles in the system
+-i int details the number of correlations that need to be calculated
+---------------------------
+[-bp int] (optional) details the number of particles in one batch for the massively parallel algorithms
+```
+
+#### Example
+
+To compile and run `Mpar1.3.1.c` on 3 nodes with 24 processors each:
+
+```
+mpicc -o vacf.Mpar1.3.1 Mpar1.3.1.c -std=c99
+
+time mpiexec.hydra -np 72 -genvall -ppn 24 ./vacf.Mpar1.3.1 -p 50000,9857960,10 -a 6912 -i 1000 -bp 144 > out.data 2>&1
+```
+
+## Organization
+
+This project has multiple directories. Here is a brief description of each. Please navigate to the specific directories for more information.
+
+- algos
+
+This direcotry contains all the algorithms, serial and parallel.
+
+- lammps
+
+This directory contains the details for the data generation using LAMMPS, a widely used parallel software for Molecular Dynamic simulations.
+
+- timing
+
+This directory contains CSV's with timing data. For more (and complete) timing information, visit this repository or refer to the tables in our paper.
+
+- utils
+
+This directory contains the utitity functions associated with this project. They are python scripts.
+
+Citing
+Cite this work as: WIP
+
+Paper can be found at: WIP
+
+Please contact the authors for any additional information required.
