@@ -322,7 +322,7 @@ int main(int argc, char **argv)
     lTime[4] = clockTime(collect);
     lTime[5] = clockTime(total);
 
-    MPI_Reduce(lTime, gTime, 5, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(lTime, gTime, 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rRank == 0)
     {
