@@ -10,11 +10,11 @@ This repository contains all the resources for the reproduction of our results w
 
 ## Setup
 
-To run these algorithms on a cluster, you will need [MPICH](https://www.mpich.org/), an implementation of the Message Passing Ineterface (MPI). To generate data, you will need LAMMPS.
+To run these algorithms on a cluster, you will need [MPICH](https://www.mpich.org/), an implementation of the Message Passing Interface (MPI). To generate data, you will need LAMMPS.
 
 #### MPICH
 
-MPICH can be installed from [here](https://www.mpich.org/downloads/) or from a package manager like apt. Documentation is available [here](https://www.mpich.org/documentation/guides/). Once installed, run `hello_world.c` to verify installation.
+MPICH can be installed from [here](https://www.mpich.org/downloads/) or a package manager like apt. Documentation is available [here](https://www.mpich.org/documentation/guides/). Once installed, run `hello_world.c` to verify installation.
 
 Compile and run with:
 
@@ -24,17 +24,17 @@ mpicc -o test hello_world.c -std=c99
 mpiexec.hydra -n 4 ./test
 ```
 
-More information can be found on the official MPICH documentaion.
+More information can be found on the official MPICH documentation.
 
 `new_script.sh` is a sample script provided for your reference. We used this to submit jobs to our PBS queue running on a 120 node cluster with Intel Xeon E5-2670 (Haswell) CPUs.
 
 #### LAMMPS
 
-LAMMPS can be downloaded from here. Unpack the same and run. Manual is available here.
+LAMMPS can be downloaded from [here](https://www.lammps.org/download.html). Unpack the same and run. The Manual is available [here](https://docs.lammps.org/Manual.html).
 
 ## Usage
 
-All programs take 3 arguments. The massively parallel implementations take one addition parameter.
+All programs take 3 arguments during execution. The massively parallel implementations take one additional parameter.
 
 ```
 Flags
@@ -62,23 +62,22 @@ This project has multiple directories. Here is a brief description of each. Plea
 
 - algos
 
-This direcotry contains all the algorithms, serial and parallel.
+    This directory contains all the algorithms, serial and parallel.
 
 - lammps
 
-This directory contains the details for the data generation using LAMMPS, a widely used parallel software for Molecular Dynamic simulations.
+    This directory contains the details for the data generation using LAMMPS, a widely used parallel software for Molecular Dynamic simulations.
 
 - timing
 
-This directory contains CSV's with timing data. For more (and complete) timing information, visit this repository or refer to the tables in our paper.
+    This directory contains CSV's with timing data. For more (and complete) timing information, visit [this](https://github.com/parthvshah/VACFTimingData) repository or refer to the tables in our paper.
 
 - utils
 
-This directory contains the utitity functions associated with this project. They are python scripts.
+    This directory contains the utility functions associated with this project. They are python scripts.
 
-Citing
+## Citing
+
 Cite this work as: WIP
 
-Paper can be found at: WIP
-
-Please contact the authors for any additional information required.
+Please contact the authors for any additional information required. All rights reserved.
