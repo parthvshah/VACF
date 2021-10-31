@@ -19,9 +19,9 @@ MPICH can be installed from [here](https://www.mpich.org/downloads/) or a packag
 Compile and run with:
 
 ```
-mpicc -o test hello_world.c -std=c99
+$mpicc -o test hello_world.c -std=c99
 
-mpiexec.hydra -n 4 ./test
+$mpiexec.hydra -n 4 ./test
 ```
 
 More information can be found on the official MPICH documentation.
@@ -31,6 +31,11 @@ More information can be found on the official MPICH documentation.
 #### LAMMPS
 
 LAMMPS can be downloaded from [here](https://www.lammps.org/download.html). Unpack the same and run. The Manual is available [here](https://docs.lammps.org/Manual.html).
+
+Run a simulation using:
+```
+$(lammps executable) < (lammps input script)
+```
 
 ## Usage
 
@@ -51,9 +56,9 @@ Flags
 To compile and run `Mpar1.3.1.c` on 3 nodes with 24 processors each:
 
 ```
-mpicc -o vacf.Mpar1.3.1 Mpar1.3.1.c -std=c99
+$mpicc -o vacf.Mpar1.3.1 Mpar1.3.1.c -std=c99
 
-time mpiexec.hydra -np 72 -genvall -ppn 24 ./vacf.Mpar1.3.1 -p 50000,9857960,10 -a 6912 -i 1000 -bp 144 > out.data 2>&1
+$time mpiexec.hydra -np 72 -genvall -ppn 24 ./vacf.Mpar1.3.1 -p 50000,9857960,10 -a 6912 -i 1000 -bp 144 > out.data 2>&1
 ```
 
 ## Organization
