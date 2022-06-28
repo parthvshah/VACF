@@ -6,6 +6,8 @@ Serial and parallel implementation of Velocity Auto-Correlation Function in C wi
 
 Abstract: WIP
 
+TODO: Update
+
 This repository contains all the resources for the reproduction of our results which are detailed in our paper. The data required can be generated using [LAMMPS](https://www.lammps.org/).
 
 ## Setup
