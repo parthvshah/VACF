@@ -6,24 +6,25 @@
 #define ROW 6913
 #define COL 200001
 
-void readData(int start, int stop, int step, int N, float **xData, float **yData, float **zData, char *fileName)
+int readData(int start, int stop, int step, int N, float **xData, float **yData, float **zData, int *indexData, int m, char *fileName)
 {
     int timestep, particle, one, index, count, maxCount;
     float xVel, yVel, zVel;
     FILE *fp;
-
+    
     fp = fopen(fileName, "r");
     if (fp == NULL)
-        return;
-    
-    count = 1;
-    maxCount = (stop-start) / step * N;
+        return 0;
 
     char line[256];
-    while (fgets(line, sizeof line, fp) != NULL)
+
+    N--;
+    count = 0;
+    maxCount = 100 * m * N;
+
+    while (count <= maxCount)
     {
-        if(count == maxCount)
-            return;
+        fgets(line, sizeof line, fp);
         sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
         index = (timestep - start) / step;
 
@@ -33,45 +34,42 @@ void readData(int start, int stop, int step, int N, float **xData, float **yData
 
         count++;
     }
-    fclose(fp);
-}
-/*
-    For particle = 1, n
-        index <- 0
-        For timestep = 1, total timesteps
-            accumulator = x, y, z velocities at timestep
-            If timestep % blockSize == 0
-                xData, yData, zData at index <- accumulator / blockSize
-                reset accumulator
-                index++
-*/
-int blockAverage(float **xData, float **yData, float **zData, int N, int M, int delay, int blockSize)
-{
-    int index = 0;
 
-    for(int i = 1; i < N; i++)
+    int skip, i, j;
+    skip = m;
+
+    do
     {
-        index = 0;
-        float xAccumulator = 0.0, yAccumulator = 0.0, zAccumulator = 0.0;
-        for(int j = 100 * delay; j < M; j++)
+        count = 0;
+
+        while(count <= 100 * N)
         {
-            xAccumulator += xData[i][j];
-            yAccumulator += yData[i][j];
-            zAccumulator += zData[i][j];
-
-            if((j+1) % blockSize == 0)
+            for(int n = 0; n < N; n++)
             {
-                xData[i][index] = xAccumulator / blockSize;
-                yData[i][index] = yAccumulator / blockSize;
-                zData[i][index] = zAccumulator / blockSize;
+                fgets(line, sizeof line, fp);
+                count++;
+                sscanf(line, "%d %d %d %f %f %f", &timestep, &particle, &one, &xVel, &yVel, &zVel);
+                xData[particle][index] = xVel;
+                yData[particle][index] = yVel;
+                zData[particle][index] = zVel;
+            }
+            indexData[index] = timestep;
+            index++;
 
-                xAccumulator = 0.0; yAccumulator = 0.0; zAccumulator = 0.0;
-                index++;
+            j = 0;
+            while(j < (skip - 1) * N)
+            {
+                fgets(line, sizeof line, fp);
+                j++;
             }
         }
-    }
 
-    return index+1;
+        skip *= m;
+
+    } while(!feof(fp));
+
+    fclose(fp);
+    return index;
 }
 
 int main(int argc, char **argv)
@@ -84,12 +82,10 @@ int main(int argc, char **argv)
     int blockSize;
     int level = 1;
 
-    // In picoseconds
-    int delay = 0;
-
-    int N, M;
+    int N, M, m;
     
     char fileName[128];
+
     for (int c = 1; c < argc; c++)
     {
         if (!strcmp(argv[c], "-p"))
@@ -98,12 +94,8 @@ int main(int argc, char **argv)
             N = atoi(argv[++c]);
         else if (!strcmp(argv[c], "-i"))
             tmax = atoi(argv[++c]);
-        else if (!strcmp(argv[c], "-b"))
-            blockSize = atoi(argv[++c]);
-        else if (!strcmp(argv[c], "-l"))
-            level = atoi(argv[++c]);
-        else if (!strcmp(argv[c], "-d"))
-            delay = atoi(argv[++c]);
+        else if (!strcmp(argv[c], "-m"))
+            m = atoi(argv[++c]);
         else if (!strcmp(argv[c], "-f"))
             sscanf(argv[++c], "%s", fileName);
         else
@@ -181,18 +173,14 @@ int main(int argc, char **argv)
         }
     }
 
+    int *indexData = (int*) malloc(sizeof(int) * COL);
+
     N++;                             // Number of particles
     M = ((stop - start) / step) + 1; // Number of timesteps
 
     tmax = (tmax == 0) ? (M / 3) : tmax;
 
-    readData(start, stop, step, N, xData, yData, zData, fileName);
-
-    while(level != 0)
-    {
-        M = blockAverage(xData, yData, zData, N, M, delay, blockSize);
-        level--;
-    }
+    int size = readData(start, stop, step, N, xData, yData, zData, indexData, m, fileName);
 
     double accumalate, particle;
     int count;
@@ -200,7 +188,7 @@ int main(int argc, char **argv)
     {
         count = 0;
         accumalate = 0.0;
-        for (int t = 0; t < (M - dt); t++)
+        for (int t = 0; t < (size - dt); t++)
         {
             particle = 0.0;
             for (int i = 1; i < N; i++)
@@ -212,8 +200,8 @@ int main(int argc, char **argv)
             count++;
             accumalate += particle;
         }
-        accumalate /= ((N - 1) * count);
-        fprintf(stdout, "%d, %e\n", dt*blockSize/2, accumalate);
+        accumalate /= ((N - 1) * count); 
+        fprintf(stdout, "%d, %e\n", dt, accumalate);
     }
 
     return 0;
